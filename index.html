@@ -5,194 +5,218 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>美股监测</title>
 <style>
-  body{margin:0;background:#0f1115;color:#e6e6e6;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
-  header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;font-size:20px;font-weight:600}
-  nav a{color:#aab;margin-left:16px;text-decoration:none;font-size:15px} nav a.on{color:#fff}
-  nav button{margin-left:16px;background:#2962ff;border:0;color:#fff;padding:6px 12px;border-radius:4px;cursor:pointer}
-  .page{display:none} .page.on{display:block}
-  .grid{display:grid;grid-template-columns:320px 1fr;gap:12px;padding:0 12px 12px}
-  .one{grid-template-columns:1fr}
-  .card{background:#171a21;border-radius:8px;padding:10px}
-  .card h3{margin:4px 6px 10px;font-size:15px;color:#aab}
-  #chart{height:520px} #heatmap{height:560px}
-  #list ul{padding:0;margin:0}
-  #list li{display:flex;justify-content:space-between;list-style:none;border-bottom:1px solid #252a33}
-  .sym{background:none;border:0;color:#e6e6e6;cursor:pointer;font-size:14px;padding:6px}
-  .del{background:none;border:0;color:#777;cursor:pointer}
-  form{display:flex;gap:6px;margin:8px 0}
-  input{flex:1;background:#0f1115;border:1px solid #333;color:#fff;padding:6px;border-radius:4px}
-  form button,.btn{background:#2962ff;border:0;color:#fff;padding:6px 10px;border-radius:4px;cursor:pointer}
-  .video{border-bottom:1px solid #252a33;padding:14px 8px}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0b0e14;color:#e6e6e6;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
+  button{font-family:inherit}
+  /* 顶栏 */
+  .top{display:flex;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid #1f2430}
+  .brand{font-size:20px;font-weight:700}
+  .brand small{display:block;font-size:12px;color:#889;font-weight:400}
+  .search{margin-left:auto;display:flex;background:#151923;border:1px solid #2a3040;border-radius:20px;padding:4px 6px 4px 14px}
+  .search input{background:none;border:0;color:#fff;width:200px;outline:none;font-size:14px}
+  .search button{background:none;border:0;color:#aab;cursor:pointer;font-size:16px}
+  .recbtn{background:#2962ff;border:0;color:#fff;padding:7px 14px;border-radius:6px;cursor:pointer}
+  /* 三栏 */
+  .main{flex:1;display:grid;grid-template-columns:190px 1fr 300px;min-height:0}
+  .side{border-right:1px solid #1f2430;padding:12px 8px;overflow:auto}
+  .side .cap{font-size:12px;color:#667;margin:6px 10px}
+  .side button{display:block;width:100%;text-align:left;background:none;border:0;color:#dde;font-size:15px;padding:10px 12px;border-radius:6px;cursor:pointer}
+  .side button.on{background:#1d2330;color:#fff;font-weight:600}
+  .center{display:flex;flex-direction:column;min-height:0;overflow:auto;padding:10px 14px}
+  .view{display:none;flex:1;flex-direction:column;min-height:0}
+  .view.on{display:flex}
+  .bar{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+  .bar button{background:#151923;border:1px solid #2a3040;color:#ccd;padding:6px 12px;border-radius:4px;cursor:pointer}
+  .bar button.on{background:#2962ff;border-color:#2962ff;color:#fff}
+  #chart{flex:1;min-height:560px}
+  .fill{flex:1;min-height:640px}
+  .right{border-left:1px solid #1f2430;display:flex;flex-direction:column;min-height:0}
+  .tabs{display:flex;border-bottom:1px solid #1f2430}
+  .tabs button{flex:1;background:none;border:0;color:#aab;padding:12px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent}
+  .tabs button.on{color:#fff;border-bottom-color:#2962ff}
+  .pane{display:none;flex:1;flex-direction:column;min-height:0;padding:8px}
+  .pane.on{display:flex}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .chip{background:#1d2330;border-radius:4px;display:flex;align-items:center}
+  .chip button{background:none;border:0;color:#e6e6e6;cursor:pointer;padding:5px 4px 5px 9px;font-size:13px}
+  .chip .x{color:#667;padding:5px 8px 5px 2px}
+  #quotes,#hot{flex:1;min-height:400px}
+  .add{background:#151923;border:1px solid #2a3040;color:#ccd;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:8px}
+  .video{border-bottom:1px solid #1f2430;padding:14px 6px}
   .video h4{margin:0 0 6px;font-size:17px} .video .date{color:#889;font-size:13px}
-  .video .tag{display:inline-block;background:#252a33;border:0;color:#e6e6e6;padding:3px 8px;margin:6px 6px 0 0;border-radius:4px;cursor:pointer}
+  .tag{background:#1d2330;border:0;color:#e6e6e6;padding:3px 8px;margin:6px 6px 0 0;border-radius:4px;cursor:pointer}
   .video p{color:#ccd;line-height:1.6;white-space:pre-line}
+  .btn{background:#2962ff;border:0;color:#fff;padding:6px 10px;border-radius:4px;cursor:pointer}
   a{color:#5b8cff}
   #mark{display:none}
   /* 录制模式 */
-  body.rec nav,body.rec #tape,body.rec #list,body.rec #heatCard{display:none}
-  body.rec .grid{grid-template-columns:1fr}
-  body.rec #chart{height:calc(100vh - 120px)}
-  body.rec header{font-size:28px}
-  body.rec #chartTitle{font-size:28px;color:#fff}
+  body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
+  body.rec .main{grid-template-columns:1fr}
   body.rec #mark{display:block;position:fixed;right:28px;bottom:20px;opacity:.55;font-size:22px;font-weight:600}
-  @media(max-width:800px){.grid{grid-template-columns:1fr}}
+  @media(max-width:900px){.main{grid-template-columns:1fr}.side{display:flex;overflow-x:auto}.side .cap{display:none}.side button{white-space:nowrap;width:auto}.right{min-height:500px}}
 </style>
 </head>
 <body>
-<header>
-  <span id="brand"></span>
-  <nav>
-    <a href="#home" id="nav-home">看盘</a>
-    <a href="#videos" id="nav-videos">视频笔记</a>
-    <button onclick="startRec(watch)">🎬 录制</button>
-  </nav>
-</header>
+<div class="top">
+  <div class="brand"><span id="brand"></span><small id="slogan"></small></div>
+  <form class="search" id="searchForm"><input id="searchIn" placeholder="输入代码，如 TSLA"><button>🔍</button></form>
+  <button class="recbtn" onclick="startRec(watch)">🎬 录制</button>
+</div>
 
-<!-- 看盘页 -->
-<div class="page" id="home">
-  <div id="tape"></div>
-  <div class="grid">
-    <div class="card" id="list">
-      <h3>自选股</h3>
-      <form id="addForm"><input id="symIn" placeholder="输入代码，如 AMD"><button>添加</button></form>
-      <ul id="ul"></ul>
+<div class="main">
+  <!-- 左侧菜单 -->
+  <div class="side" id="side">
+    <div class="cap">数据中心</div>
+    <button data-view="stock">个股分析</button>
+    <button data-view="fin">财务数据</button>
+    <button data-view="heat">板块热力图</button>
+    <button data-view="news">美股新闻</button>
+    <button data-view="cal">财经日历</button>
+    <div class="cap">我的频道</div>
+    <button data-view="videos">视频笔记</button>
+  </div>
+
+  <!-- 中间 -->
+  <div class="center">
+    <div class="view" id="v-stock">
+      <div id="info"></div>
+      <div class="bar" id="tf"></div>
+      <div id="chart"></div>
     </div>
-    <div class="card"><h3 id="chartTitle">K 线</h3><div id="chart"></div></div>
+    <div class="view" id="v-fin"><div id="fin" class="fill"></div></div>
+    <div class="view" id="v-heat"><div id="heat" class="fill"></div></div>
+    <div class="view" id="v-news"><div id="news" class="fill"></div></div>
+    <div class="view" id="v-cal"><div id="cal" class="fill"></div></div>
+    <div class="view" id="v-videos"><div id="videoList"></div></div>
   </div>
-  <div class="grid one" id="heatCard">
-    <div class="card"><h3>标普 500 热力图</h3><div id="heatmap"></div></div>
+
+  <!-- 右侧 -->
+  <div class="right">
+    <div class="tabs">
+      <button data-pane="watch" class="on">我的关注</button>
+      <button data-pane="hot">热门股</button>
+    </div>
+    <div class="pane on" id="p-watch">
+      <button class="add" onclick="addSym(cur)">＋ 关注当前股票</button>
+      <div class="chips" id="chips"></div>
+      <div id="quotes"></div>
+    </div>
+    <div class="pane" id="p-hot"><div id="hot"></div></div>
   </div>
 </div>
-
-<!-- 视频笔记页 -->
-<div class="page" id="videos">
-  <div class="grid one"><div class="card" id="videoList"></div></div>
-</div>
-
 <div id="mark"></div>
 
 <script>
-/* ========= 只需要改这里 ========= */
-const CHANNEL = "我的美股频道";   // 频道名，显示在标题和录制水印
-const VIDEOS = [                   // 每期视频一条，新的放最上面
-  {
-    date: "2027-01-05",
-    title: "第1期：示例 —— 芯片股怎么看",
-    youtube: "",                   // 发布后填 YouTube 链接
-    symbols: ["NVDA", "AMD", "TSM"],
-    notes: "要点一：……\n要点二：……"
-  }
+/* ========= 常改的设置 ========= */
+const CHANNEL = "我的美股频道";
+const SLOGAN  = "美股投资，顺势而为";
+const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
+const STUDIES = ["Volume@tv-basicstudies","MACD@tv-basicstudies"];  // 默认指标
+const VIDEOS = [
+  { date:"2027-01-05", title:"第1期：示例 —— 芯片股怎么看", youtube:"",
+    symbols:["NVDA","AMD","TSM"], notes:"要点一：……\n要点二：……" }
 ];
-/* ================================ */
+/* ============================== */
 
-document.getElementById("brand").textContent = "📈 " + CHANNEL;
-document.getElementById("mark").textContent = CHANNEL;
-document.title = CHANNEL;
+const $ = id => document.getElementById(id);
+$("brand").textContent = "📈 " + CHANNEL; $("slogan").textContent = SLOGAN;
+$("mark").textContent = CHANNEL; document.title = CHANNEL;
 
 function widget(id, name, cfg){
-  const el = document.getElementById(id);
-  el.className = "tradingview-widget-container";
+  const el = $(id);
+  el.className = (el.className.replace("tradingview-widget-container","") + " tradingview-widget-container").trim();
   el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%"></div>';
   const s = document.createElement("script");
   s.src = `https://s3.tradingview.com/external-embedding/embed-widget-${name}.js`;
-  s.async = true;
-  s.innerHTML = JSON.stringify(cfg);
+  s.async = true; s.innerHTML = JSON.stringify(cfg);
   el.appendChild(s);
 }
+const short = s => s.split(":").pop();
 
-/* 自选股 */
-const DEFAULT = ["SPY","QQQ","AAPL","NVDA","MSFT","TSLA"];
-let watch = JSON.parse(localStorage.getItem("watch") || "null") || DEFAULT;
-const save = () => localStorage.setItem("watch", JSON.stringify(watch));
-function renderList(){
-  document.getElementById("ul").innerHTML = watch.map(s =>
-    `<li><button class="sym" onclick="showChart('${s}')">${s}</button>
-     <button class="del" onclick="removeSym('${s}')">✕</button></li>`).join("");
-}
-function removeSym(s){ watch = watch.filter(x => x !== s); save(); renderList(); }
-document.getElementById("addForm").onsubmit = e => {
-  e.preventDefault();
-  const s = document.getElementById("symIn").value.trim().toUpperCase();
-  if (s && !watch.includes(s)) { watch.push(s); save(); renderList(); showChart(s); }
-  e.target.reset();
-};
+/* 当前股票 + 周期 */
+let cur = "NASDAQ:TSLA", tf = "D";
+const TF = [["1","1分钟"],["5","5分钟"],["15","15分钟"],["30","30分钟"],["60","1小时"],["240","4小时"],["D","日线"],["W","周线"],["M","月线"]];
+$("tf").innerHTML = TF.map(([v,t]) => `<button data-tf="${v}">${t}</button>`).join("");
+$("tf").onclick = e => { if (e.target.dataset.tf){ tf = e.target.dataset.tf; drawChart(); } };
 
-function showChart(sym){
-  document.getElementById("chartTitle").textContent = sym;
+function drawChart(){
+  document.querySelectorAll("#tf button").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
+  widget("info", "symbol-info", {symbol:cur, width:"100%", locale:"zh_CN", colorTheme:"dark", isTransparent:true});
   widget("chart", "advanced-chart", {
-    autosize: true, symbol: sym, interval: "D", timezone: "America/New_York",
-    theme: "dark", style: "1", locale: "zh_CN", allow_symbol_change: true,
-    studies: ["MASimple@tv-basicstudies", "Volume@tv-basicstudies"]
+    autosize:true, symbol:cur, interval:tf, timezone:"America/New_York", theme:"dark",
+    style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:false,
+    backgroundColor:"#0b0e14", studies:STUDIES
   });
 }
+function setSymbol(s){
+  cur = s.trim().toUpperCase(); $("searchIn").value = short(cur);
+  showView("stock");
+}
+$("searchForm").onsubmit = e => { e.preventDefault(); if ($("searchIn").value.trim()) setSymbol($("searchIn").value); };
 
-/* 录制模式：←/→ 切换股票，Esc 退出 */
+/* 左侧菜单 */
+const loaded = {};
+function showView(v){
+  document.querySelectorAll(".view").forEach(el => el.classList.toggle("on", el.id === "v-" + v));
+  document.querySelectorAll("#side button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  if (v === "stock") drawChart();
+  if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"dark", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
+  if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"dark", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
+  if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"dark", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
+  if (v === "cal" && !loaded.cal) widget("cal", "events", {colorTheme:"dark", isTransparent:true, width:"100%", height:"100%", locale:"zh_CN", importanceFilter:"0,1", countryFilter:"us"});
+  loaded[v] = true;
+}
+$("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
+
+/* 右侧：我的关注 / 热门股 */
+let watch; try { watch = JSON.parse(localStorage.getItem("watchlist")) || DEFAULT; } catch(e){ watch = DEFAULT; }
+const save = () => { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch(e){} };
+function renderWatch(){
+  $("chips").innerHTML = watch.map(s =>
+    `<span class="chip"><button onclick="setSymbol('${s}')">${short(s)}</button><button class="x" onclick="removeSym('${s}')">✕</button></span>`).join("");
+  widget("quotes", "market-quotes", {width:"100%", height:"100%", showSymbolLogo:true, isTransparent:true, colorTheme:"dark", locale:"zh_CN",
+    symbolsGroups:[{name:"我的关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
+}
+function addSym(s){ if (!watch.some(w => short(w) === short(s))) { watch.push(s); save(); renderWatch(); } }
+function removeSym(s){ watch = watch.filter(x => x !== s); save(); renderWatch(); }
+
+let hotLoaded = false;
+document.querySelector(".tabs").onclick = e => {
+  const p = e.target.dataset.pane; if (!p) return;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.pane === p));
+  document.querySelectorAll(".pane").forEach(el => el.classList.toggle("on", el.id === "p-" + p));
+  if (p === "hot" && !hotLoaded){ hotLoaded = true;
+    widget("hot", "hotlists", {colorTheme:"dark", dateRange:"1D", exchange:"US", showChart:true, locale:"zh_CN", isTransparent:true, showSymbolLogo:true, width:"100%", height:"100%"}); }
+};
+
+/* 视频笔记 */
+$("videoList").innerHTML = VIDEOS.map((v,i) => `
+  <div class="video"><h4>${v.title}</h4><span class="date">${v.date}</span>
+  ${v.youtube ? ` · <a href="${v.youtube}" target="_blank">在 YouTube 观看</a>` : ""}
+  <div>${v.symbols.map(s => `<button class="tag" onclick="setSymbol('${s}')">${s}</button>`).join("")}</div>
+  <p>${v.notes}</p><button class="btn" onclick="startRec(VIDEOS[${i}].symbols)">🎬 录制本期</button></div>`).join("");
+
+/* 录制模式：←/→ 切换，Esc 退出 */
 let recList = [], recIdx = 0;
 function startRec(list){
   if (!list.length) return;
   recList = list; recIdx = 0;
-  location.hash = "#home";
-  document.body.classList.add("rec");
-  showChart(recList[0]);
+  document.body.classList.add("rec"); setSymbol(recList[0]);
   document.documentElement.requestFullscreen?.().catch(() => {});
-}
-function stopRec(){
-  document.body.classList.remove("rec");
-  if (document.fullscreenElement) document.exitFullscreen();
 }
 document.addEventListener("keydown", e => {
   if (!document.body.classList.contains("rec")) return;
-  if (e.key === "Escape") stopRec();
-  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+  if (e.key === "Escape"){ document.body.classList.remove("rec"); if (document.fullscreenElement) document.exitFullscreen(); }
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft"){
     recIdx = (recIdx + (e.key === "ArrowRight" ? 1 : -1) + recList.length) % recList.length;
-    showChart(recList[recIdx]);
+    setSymbol(recList[recIdx]);
   }
 });
-document.addEventListener("fullscreenchange", () => {
-  if (!document.fullscreenElement) document.body.classList.remove("rec");
-});
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) document.body.classList.remove("rec"); });
 
-/* 视频笔记 */
-function renderVideos(){
-  document.getElementById("videoList").innerHTML = VIDEOS.map((v, i) => `
-    <div class="video">
-      <h4>${v.title}</h4>
-      <span class="date">${v.date}</span>
-      ${v.youtube ? ` · <a href="${v.youtube}" target="_blank">在 YouTube 观看</a>` : ""}
-      <div>${v.symbols.map(s => `<button class="tag" onclick="location.hash='#home';showChart('${s}')">${s}</button>`).join("")}</div>
-      <p>${v.notes}</p>
-      <button class="btn" onclick="startRec(VIDEOS[${i}].symbols)">🎬 录制本期</button>
-    </div>`).join("");
-}
-
-/* 页面切换 */
-function route(){
-  const p = location.hash === "#videos" ? "videos" : "home";
-  document.querySelectorAll(".page").forEach(el => el.classList.toggle("on", el.id === p));
-  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.id === "nav-" + p));
-}
-window.addEventListener("hashchange", route);
-
-/* 初始化 */
-widget("tape", "ticker-tape", {
-  symbols: [
-    {proName:"FOREXCOM:SPXUSD", title:"标普500"},
-    {proName:"FOREXCOM:NSXUSD", title:"纳指100"},
-    {proName:"FOREXCOM:DJI", title:"道指"},
-    {proName:"CBOE:VIX", title:"VIX"},
-    {proName:"TVC:US10Y", title:"10年美债"}
-  ],
-  colorTheme: "dark", isTransparent: true, displayMode: "adaptive", locale: "zh_CN"
-});
-widget("heatmap", "stock-heatmap", {
-  dataSource: "SPX500", blockSize: "market_cap_basic", blockColor: "change",
-  grouping: "sector", locale: "zh_CN", colorTheme: "dark", hasTopBar: true,
-  isZoomEnabled: true, hasSymbolTooltip: true, width: "100%", height: "100%"
-});
-renderList();
-renderVideos();
-route();
-showChart(watch[0] || "SPY");
+/* 启动 */
+renderWatch();
+showView("stock");
 </script>
 </body>
 </html>
