@@ -2,7 +2,7 @@ name: Update BBI
 
 on:
   schedule:
-    - cron: "30 21 * * 1-5"   # 周一到周五 UTC 21:30（美东收盘后）
+    - cron: "5 * * * 0-5"     # 周日到周五每小时运行
   workflow_dispatch:          # 允许手动运行
 
 permissions:
