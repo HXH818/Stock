@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>美股监测</title>
+<title>美股投资</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -12,19 +12,19 @@
   *{box-sizing:border-box}
   body{margin:0;background:#ffffff;color:#1a1a1a;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
   button{font-family:inherit}
-  .top{display:flex;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid #e5e7eb}
-  .brand{font-size:20px;font-weight:700}
+  .top{display:flex;align-items:center;gap:12px;padding:4px 14px;border-bottom:1px solid #e5e7eb}
+  .brand{font-size:16px;font-weight:700}
   .brand small{display:block;font-size:12px;color:#888;font-weight:400}
-  .search{margin-left:auto;display:flex;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:4px 6px 4px 14px}
+  .search{margin-left:auto;display:flex;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:2px 6px 2px 12px}
   .search input{background:none;border:0;color:#111;width:200px;outline:none;font-size:14px}
   .search button{background:none;border:0;color:#666;cursor:pointer;font-size:16px}
-  .recbtn{background:#2962ff;border:0;color:#fff;padding:7px 14px;border-radius:6px;cursor:pointer}
+  .recbtn{background:#2962ff;border:0;color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer}
   .main{flex:1;display:grid;grid-template-columns:190px 1fr 300px;min-height:0}
   .side{border-right:1px solid #e5e7eb;padding:12px 8px;overflow:auto}
   .side .cap{font-size:12px;color:#999;margin:6px 10px}
   .side button{display:block;width:100%;text-align:left;background:none;border:0;color:#333;font-size:15px;padding:10px 12px;border-radius:6px;cursor:pointer}
   .side button.on{background:#e8eefc;color:#2962ff;font-weight:600}
-  .center{display:flex;flex-direction:column;min-height:0;overflow:auto;padding:10px 14px}
+  .center{display:flex;flex-direction:column;min-height:0;overflow:auto;padding:4px 8px}
   .view{display:none;flex:1;flex-direction:column;min-height:0}
   .view.on{display:flex}
   #chart{flex:1;min-height:560px}
@@ -89,7 +89,7 @@
   <!-- 右侧 -->
   <div class="right">
     <div class="tabs">
-      <button data-pane="watch" class="on">我的关注</button>
+      <button data-pane="watch" class="on">关注</button>
       <button data-pane="hot">热门股</button>
     </div>
     <div class="pane on" id="p-watch">
@@ -104,8 +104,8 @@
 
 <script>
 /* ========= 常改的设置 ========= */
-const CHANNEL = "美股频道";
-const SLOGAN  = "股票投资，顺势而为";
+const CHANNEL = "美股投资";
+const SLOGAN  = "";
 const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
 const STUDIES = ["Volume@tv-basicstudies","MACD@tv-basicstudies"];  // 默认指标
 const VIDEOS = [
@@ -115,7 +115,7 @@ const VIDEOS = [
 /* ============================== */
 
 const $ = id => document.getElementById(id);
-$("brand").textContent = "📈 " + CHANNEL; $("slogan").textContent = SLOGAN;
+$("brand").textContent = CHANNEL; $("slogan").textContent = SLOGAN;
 $("mark").textContent = CHANNEL; document.title = CHANNEL;
 
 function widget(id, name, cfg){
@@ -161,14 +161,14 @@ function showView(v){
 }
 $("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
 
-/* 右侧：我的关注 / 热门股 */
+/* 右侧：关注 / 热门股 */
 let watch; try { watch = JSON.parse(localStorage.getItem("watchlist")) || DEFAULT; } catch(e){ watch = DEFAULT; }
 const save = () => { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch(e){} };
 function renderWatch(){
   $("chips").innerHTML = watch.map(s =>
     `<span class="chip"><button onclick="setSymbol('${s}')">${short(s)}</button><button class="x" onclick="removeSym('${s}')">✕</button></span>`).join("");
   widget("quotes", "market-quotes", {width:"100%", height:"100%", showSymbolLogo:true, isTransparent:true, colorTheme:"light", locale:"zh_CN",
-    symbolsGroups:[{name:"我的关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
+    symbolsGroups:[{name:"关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
 }
 function addSym(s){ if (!watch.some(w => short(w) === short(s))) { watch.push(s); save(); renderWatch(); } }
 function removeSym(s){ watch = watch.filter(x => x !== s); save(); renderWatch(); }
