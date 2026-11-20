@@ -56,7 +56,7 @@
   .lbl b{font-weight:700}
   .trk{display:flex;align-items:center;gap:10px}
   .bar{position:relative;flex:1;height:22px;background:#e6e6e6;border-radius:3px}
-  .bar .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#999}
+  .bar .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#d0d0d0}
   .bar .fillb{position:absolute;top:0;bottom:0}
   .val{width:64px;text-align:right;font-size:18px;font-weight:600}
   .sub{color:#888;font-size:12px;margin-top:4px}
@@ -83,7 +83,7 @@
   <!-- 左侧菜单 -->
   <div class="side" id="side">
     <div class="cap">数据中心</div>
-    <button data-view="home">大盘多空</button>
+    <button data-view="home">大盘指数</button>
     <button data-view="stock">个股分析</button>
     <button data-view="fin">财务数据</button>
     <button data-view="heat">板块热力图</button>
@@ -96,7 +96,7 @@
   <!-- 中间 -->
   <div class="center">
     <div class="view" id="v-home">
-      <h2 class="hh">大盘多空 · BBI <small id="upd"></small></h2>
+      <h2 class="hh">大盘多空 <small id="upd"></small></h2>
       <div class="vixbox" id="vix"></div>
       <div class="duo" id="bbiCards"></div>
       <p class="note">规则：价格在 BBI 之上为偏多，之下为偏空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。条带范围 ±5%，超出时顶格显示。仅为个人观点，不构成投资建议。</p>
@@ -198,8 +198,10 @@ function vixGauge(x){
     const a0 = 180 - 45*i - 1, a1 = 180 - 45*(i+1) + 1, [x0,y0] = P(a0,r), [x1,y1] = P(a1,r);
     return `<path d="M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}" stroke="${z[3]}" stroke-width="24" fill="none"/>`;
   }).join("");
-  const names = VZ.map((z,i) => { const [x,y] = P(180-45*i-22.5, r);
-    return `<text x="${x}" y="${y+4}" font-size="12" font-weight="600" fill="#fff" text-anchor="middle">${z[2]}</text>`; }).join("");
+  const names = VZ.map((z,i) => {   // 文字沿弧线排布，居中在各自色带内
+    const [x0,y0] = P(180-45*i-4, r), [x1,y1] = P(180-45*(i+1)+4, r);
+    return `<path id="vz${i}" d="M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}" fill="none"/>
+      <text font-size="12" font-weight="600" fill="#fff" letter-spacing="6" dy="4"><textPath href="#vz${i}" startOffset="50%" text-anchor="middle">${z[2]}</textPath></text>`; }).join("");
   const ticks = [10,15,20,30,50].map((t,i) => { const [x,y] = P(180-45*i, r+22);
     return `<text x="${x}" y="${y+4}" font-size="11" fill="#999" text-anchor="middle">${t}</text>`; }).join("");
   const ang = vixAngle(x.value), [nx,ny] = P(ang, r-30), [b1x,b1y] = P(ang+90,6), [b2x,b2y] = P(ang-90,6);
