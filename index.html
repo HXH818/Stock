@@ -123,7 +123,7 @@
       <div id="scBody"><p class="note">加载中…</p></div>
     </div>
     <div class="view" id="v-bbi">
-      <div class="bchead"><b id="bcT"></b><span id="bcInfo"></span><a id="bcTV">在 TradingView 中查看 →</a></div>
+      <div class="bchead"><b id="bcT"></b><span id="bcInfo"></span><a id="bcTV">在我的 TradingView 中打开 →</a></div>
       <div id="bc"></div>
       <div class="bclegend">BBI：<span style="color:#089981">━ 偏多</span> <span style="color:#f23645">━ 偏空</span>　<span style="color:#2962ff">━ DIF</span>　<span style="color:#e91e63">━ DEA</span>　MACD(12,26,9)</div>
     </div>
@@ -158,7 +158,8 @@
 const CHANNEL = "美股频道";
 const SLOGAN  = "";
 const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
-const STUDIES = [{id:"MAExp@tv-basicstudies", inputs:{length:20}}, {id:"MACD@tv-basicstudies"}];
+const STUDIES = [{id:"MAExp@tv-basicstudies", inputs:{length:20}}, {id:"MACD@tv-basicstudies"}];  // 录制模式用的嵌入图表
+const TV_LAYOUT = "";   // 你的 TradingView 布局编号（网址 chart/ 后面那串），留空则打开你最近用过的布局
 const VIDEOS = [
   { date:"2027-01-05", title:"第1期：示例 —— 芯片股怎么看", youtube:"",
     symbols:["NVDA","AMD","TSM"], notes:"要点一：……\n要点二：……" }
@@ -192,9 +193,14 @@ function drawChart(){
     backgroundColor:"#ffffff", studies:STUDIES
   });
 }
+function openTV(sym){   // 在你自己的 TradingView（新窗口）中打开
+  const u = `https://www.tradingview.com/chart/${TV_LAYOUT ? TV_LAYOUT + "/" : ""}?symbol=${encodeURIComponent(sym)}`;
+  window.open(u, "_blank", "noopener");
+}
 function setSymbol(s){
   cur = s.trim().toUpperCase(); $("searchIn").value = short(cur);
-  showView("stock");
+  if (document.body.classList.contains("rec")) showView("stock");   // 录制模式仍用页面内图表
+  else openTV(cur);
 }
 $("searchForm").onsubmit = e => { e.preventDefault(); if ($("searchIn").value.trim()) setSymbol($("searchIn").value); };
 
