@@ -62,6 +62,8 @@
   .sub{color:#888;font-size:12px;margin-top:4px}
   .bull{color:#089981} .bear{color:#f23645}
   .note{color:#888;font-size:12px;margin:12px 4px}
+  .vixbox{display:flex;justify-content:center;margin:0 0 10px}
+  .vixbox svg{width:340px;height:auto}
   .hh small{font-size:12px;color:#888;font-weight:400;margin-left:8px}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
@@ -95,6 +97,7 @@
   <div class="center">
     <div class="view" id="v-home">
       <h2 class="hh">大盘多空 · BBI <small id="upd"></small></h2>
+      <div class="vixbox" id="vix"></div>
       <div class="duo" id="bbiCards"></div>
       <p class="note">规则：价格在 BBI 之上为偏多，之下为偏空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。条带范围 ±5%，超出时顶格显示。仅为个人观点，不构成投资建议。</p>
     </div>
@@ -174,16 +177,46 @@ const RANGE = 5;   // 条带范围 ±5%
 function bbiRow(label, r, unit){
   const col = r.bull ? "#089981" : "#f23645";
   const w = Math.min(Math.abs(r.pct), RANGE) / RANGE * 50;
-  const pos = r.pct >= 0 ? `left:50%` : `right:50%`;
+  const pos = r.pct >= 0 ? `right:50%` : `left:50%`;   // 偏多向左、偏空向右，与 VIX 仪表方向一致
   return `<div class="row">
     <div class="lbl">${label}：<b class="${r.bull ? "bull" : "bear"}">${r.bull ? "偏多" : "偏空"}</b></div>
     <div class="trk"><div class="bar"><div class="mid"></div><div class="fillb" style="${pos};width:${w}%;background:${col}"></div></div>
       <div class="val ${r.bull ? "bull" : "bear"}">${r.pct > 0 ? "+" : ""}${r.pct}%</div></div>
     <div class="sub">价格 ${r.close} · BBI ${r.bbi} · 已持续 ${r.bars} ${unit}</div></div>`;
 }
+/* VIX 半圆仪表：四个区域各占 45°，区间内线性 */
+const VZ = [[10,15,"平静","#089981"],[15,20,"正常","#7d8fa3"],[20,30,"紧张","#f7a600"],[30,50,"恐慌","#f23645"]];
+function vixAngle(v){
+  v = Math.max(10, Math.min(50, v));
+  const i = VZ.findIndex(z => v <= z[1]);
+  const [a,b] = VZ[i];
+  return 180 - 45 * (i + (v - a) / (b - a));
+}
+function vixGauge(x){
+  const cx=170, cy=178, r=120, P = (deg, rr) => [cx + rr*Math.cos(deg*Math.PI/180), cy - rr*Math.sin(deg*Math.PI/180)];
+  const arcs = VZ.map((z,i) => {
+    const a0 = 180 - 45*i - 1, a1 = 180 - 45*(i+1) + 1, [x0,y0] = P(a0,r), [x1,y1] = P(a1,r);
+    return `<path d="M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}" stroke="${z[3]}" stroke-width="24" fill="none"/>`;
+  }).join("");
+  const names = VZ.map((z,i) => { const [x,y] = P(180-45*i-22.5, r);
+    return `<text x="${x}" y="${y+4}" font-size="12" font-weight="600" fill="#fff" text-anchor="middle">${z[2]}</text>`; }).join("");
+  const ticks = [10,15,20,30,50].map((t,i) => { const [x,y] = P(180-45*i, r+22);
+    return `<text x="${x}" y="${y+4}" font-size="11" fill="#999" text-anchor="middle">${t}</text>`; }).join("");
+  const ang = vixAngle(x.value), [nx,ny] = P(ang, r-30), [b1x,b1y] = P(ang+90,6), [b2x,b2y] = P(ang-90,6);
+  const z = VZ.find(z => x.value <= z[1]) || VZ[3], up = x.chg >= 0;
+  return `<svg viewBox="0 0 340 250">
+    <text x="${cx}" y="16" font-size="14" fill="#333" text-anchor="middle" font-weight="600">VIX 恐慌指数</text>
+    ${arcs}${names}${ticks}
+    <polygon points="${nx},${ny} ${b1x},${b1y} ${b2x},${b2y}" fill="#333"/>
+    <circle cx="${cx}" cy="${cy}" r="9" fill="#333"/><circle cx="${cx}" cy="${cy}" r="3" fill="#fff"/>
+    <text x="${cx}" y="${cy+44}" font-size="30" font-weight="700" fill="${z[3]}" text-anchor="middle">${x.value}</text>
+    <text x="${cx}" y="${cy+66}" font-size="13" fill="${up ? "#f23645" : "#089981"}" text-anchor="middle">${up ? "▲ +" : "▼ "}${x.chg}（${up ? "+" : ""}${x.pct}%）· ${z[2]}</text>
+  </svg>`;
+}
 function loadBBI(){
   fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
     $("upd").textContent = "更新于 " + d.updated;
+    if (d.vix) $("vix").innerHTML = vixGauge(d.vix);
     $("bbiCards").innerHTML = d.items.map(it => `<div class="box"><h3>${it.name}</h3>
       ${bbiRow("日线", it.d1, "天")}${bbiRow("4H", it.h4, "根")}</div>`).join("");
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });

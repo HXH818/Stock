@@ -54,6 +54,13 @@ if __name__ == "__main__":
             })
         except Exception as e:
             print("失败:", tk, e)
+    try:  # VIX：只取最新值和前一日收盘
+        v = fetch("^VIX", "10d", "1d")
+        out["vix"] = {"value": round(float(v.iloc[-1]), 2),
+                      "chg": round(float(v.iloc[-1] - v.iloc[-2]), 2),
+                      "pct": round(float(v.iloc[-1] / v.iloc[-2] - 1) * 100, 2)}
+    except Exception as e:
+        print("失败: ^VIX", e)
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)
     print(json.dumps(out, ensure_ascii=False, indent=1))
