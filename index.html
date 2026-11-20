@@ -81,11 +81,19 @@
   .bchead a{margin-left:auto;color:#2962ff;cursor:pointer;font-size:13px}
   #bc{flex:1;min-height:620px}
   .bclegend{font-size:12px;color:#888;margin:6px 4px}
-  .secrow{display:grid;grid-template-columns:60px 80px 1fr 70px 110px;align-items:center;gap:10px;padding:9px 8px;border-bottom:1px solid #f0f1f3;cursor:pointer}
+  .sechead,.secrow{display:grid;grid-template-columns:56px 76px minmax(180px,1fr) 74px 118px 200px 110px 64px;align-items:center;column-gap:14px;padding:0 10px}
+  .sechead{font-size:12px;color:#999;padding-bottom:8px;border-bottom:1px solid #e5e7eb}
+  .secrow{height:58px;border-bottom:1px solid #f0f1f3;cursor:pointer}
   .secrow:hover{background:#f8faff}
   .secrow .code{font-weight:700} .secrow .nm{color:#444}
-  .secrow .st{font-size:13px}
+  .secrow .st{font-size:13px;white-space:nowrap}
+  .secrow .val{width:auto}
   .star{color:#f7a600;font-weight:700;margin-left:4px}
+  .rng{display:flex;align-items:center;gap:6px;font-size:11px;color:#999}
+  .rng .trk52{position:relative;flex:1;height:6px;background:#e6e6e6;border-radius:3px}
+  .rng .dot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#2962ff;border:2px solid #fff;box-shadow:0 0 0 1px #2962ff}
+  .dist{font-size:12px;color:#555;white-space:nowrap}
+  .nh{color:#c9a000;font-weight:700;font-size:12px} .nl{color:#8e44ad;font-weight:700;font-size:12px}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -127,7 +135,7 @@
     <div class="view" id="v-sector">
       <h2 class="hh">板块 BBI · 日线 <small id="secUpd"></small></h2>
       <div id="secList"><p class="note">加载中…</p></div>
-      <p class="note">按偏离度从强到弱排序。左绿偏多、右红偏空，条带范围 ±5%。★新 = 今天由空翻多。点任意一行查看 K 线 + BBI + MACD。仅为个人观点，不构成投资建议。</p>
+      <p class="note">按 BBI 偏离度从强到弱排序。左绿偏多、右红偏空，条带范围 ±5%。★新 = 今天由空翻多。52 周位置：圆点越靠右越接近一年高点，鼠标停留可看最高/最低价；🔺新高 / 🔻新低 = 今天创 52 周新高 / 新低。点任意一行查看 K 线 + BBI + MACD。仅为个人观点，不构成投资建议。</p>
     </div>
     <div class="view" id="v-bbi">
       <div class="bchead"><b id="bcT"></b><span id="bcInfo"></span><a id="bcTV">在我的 TradingView 中打开 →</a></div>
@@ -268,13 +276,18 @@ function loadSector(){
   fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
     if (!d.sectors || !d.sectors.length) throw 0;
     $("secUpd").textContent = "更新于 " + d.updated;
-    $("secList").innerHTML = [...d.sectors].sort((a, b) => b.pct - a.pct).map(s => {
+    const head = `<div class="sechead"><span>代码</span><span>板块</span><span style="text-align:center">BBI 偏离（日线）</span><span style="text-align:right">偏离</span><span>状态</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span><span></span></div>`;
+    $("secList").innerHTML = head + [...d.sectors].sort((a, b) => b.pct - a.pct).map(s => {
       const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
+      const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
       return `<div class="secrow" onclick="openChart('${s.ticker}')">
         <span class="code">${s.ticker}</span><span class="nm">${s.name}</span>
         <div class="bar"><div class="mid"></div><div class="fillb" style="${s.pct >= 0 ? "right" : "left"}:50%;width:${w}%;background:${col}"></div></div>
-        <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
-        <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span></div>`;
+        <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px;text-align:right">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
+        <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span>
+        <div class="rng" title="52 周最低 ${s.lo52} · 最高 ${s.hi52}">低<div class="trk52"><div class="dot" style="left:${(s.pos * 100).toFixed(1)}%"></div></div>高</div>
+        <span class="dist">${dist}</span>
+        <span>${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span></div>`;
     }).join("");
   }).catch(() => { $("secList").innerHTML = '<p class="note">还没有板块数据：请到 Actions → Update BBI → Run workflow 运行一次。</p>'; });
 }

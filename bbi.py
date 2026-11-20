@@ -66,7 +66,14 @@ if __name__ == "__main__":
         try:
             h = yf.Ticker(tk).history(period="1y", interval="1d")[["Open", "High", "Low", "Close"]].dropna()
             r = summarize(h["Close"])
-            out["sectors"].append({"ticker": tk, "name": name, **r, "new": r["bull"] and r["bars"] == 1})
+            y = h.tail(252)                                   # 最近 52 周
+            hi, lo, c = float(y["High"].max()), float(y["Low"].min()), float(y["Close"].iloc[-1])
+            w52 = {"hi52": round(hi, 2), "lo52": round(lo, 2),
+                   "pos": round((c - lo) / (hi - lo), 4) if hi > lo else 0.5,
+                   "from_hi": round((c / hi - 1) * 100, 2), "from_lo": round((c / lo - 1) * 100, 2),
+                   "nh": bool(y["High"].iloc[-1] >= y["High"].iloc[:-1].max()),   # 今天创 52 周新高
+                   "nl": bool(y["Low"].iloc[-1] <= y["Low"].iloc[:-1].min())}     # 今天创 52 周新低
+            out["sectors"].append({"ticker": tk, "name": name, **r, **w52, "new": r["bull"] and r["bars"] == 1})
             k = h.tail(220)
             with open(f"charts/{tk}.json", "w", encoding="utf-8") as f:
                 json.dump({"t": tk, "name": name + "板块 ETF", "d": [x.strftime("%Y-%m-%d") for x in k.index],
