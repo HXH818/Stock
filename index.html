@@ -7,53 +7,47 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#0b0e14">
+<meta name="theme-color" content="#ffffff">
 <style>
   *{box-sizing:border-box}
-  body{margin:0;background:#0b0e14;color:#e6e6e6;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
+  body{margin:0;background:#ffffff;color:#1a1a1a;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
   button{font-family:inherit}
-  /* 顶栏 */
-  .top{display:flex;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid #1f2430}
+  .top{display:flex;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid #e5e7eb}
   .brand{font-size:20px;font-weight:700}
-  .brand small{display:block;font-size:12px;color:#889;font-weight:400}
-  .search{margin-left:auto;display:flex;background:#151923;border:1px solid #2a3040;border-radius:20px;padding:4px 6px 4px 14px}
-  .search input{background:none;border:0;color:#fff;width:200px;outline:none;font-size:14px}
-  .search button{background:none;border:0;color:#aab;cursor:pointer;font-size:16px}
+  .brand small{display:block;font-size:12px;color:#888;font-weight:400}
+  .search{margin-left:auto;display:flex;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:4px 6px 4px 14px}
+  .search input{background:none;border:0;color:#111;width:200px;outline:none;font-size:14px}
+  .search button{background:none;border:0;color:#666;cursor:pointer;font-size:16px}
   .recbtn{background:#2962ff;border:0;color:#fff;padding:7px 14px;border-radius:6px;cursor:pointer}
-  /* 三栏 */
   .main{flex:1;display:grid;grid-template-columns:190px 1fr 300px;min-height:0}
-  .side{border-right:1px solid #1f2430;padding:12px 8px;overflow:auto}
-  .side .cap{font-size:12px;color:#667;margin:6px 10px}
-  .side button{display:block;width:100%;text-align:left;background:none;border:0;color:#dde;font-size:15px;padding:10px 12px;border-radius:6px;cursor:pointer}
-  .side button.on{background:#1d2330;color:#fff;font-weight:600}
+  .side{border-right:1px solid #e5e7eb;padding:12px 8px;overflow:auto}
+  .side .cap{font-size:12px;color:#999;margin:6px 10px}
+  .side button{display:block;width:100%;text-align:left;background:none;border:0;color:#333;font-size:15px;padding:10px 12px;border-radius:6px;cursor:pointer}
+  .side button.on{background:#e8eefc;color:#2962ff;font-weight:600}
   .center{display:flex;flex-direction:column;min-height:0;overflow:auto;padding:10px 14px}
   .view{display:none;flex:1;flex-direction:column;min-height:0}
   .view.on{display:flex}
-  .bar{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
-  .bar button{background:#151923;border:1px solid #2a3040;color:#ccd;padding:6px 12px;border-radius:4px;cursor:pointer}
-  .bar button.on{background:#2962ff;border-color:#2962ff;color:#fff}
   #chart{flex:1;min-height:560px}
   .fill{flex:1;min-height:640px}
-  .right{border-left:1px solid #1f2430;display:flex;flex-direction:column;min-height:0}
-  .tabs{display:flex;border-bottom:1px solid #1f2430}
-  .tabs button{flex:1;background:none;border:0;color:#aab;padding:12px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent}
-  .tabs button.on{color:#fff;border-bottom-color:#2962ff}
+  .right{border-left:1px solid #e5e7eb;display:flex;flex-direction:column;min-height:0}
+  .tabs{display:flex;border-bottom:1px solid #e5e7eb}
+  .tabs button{flex:1;background:none;border:0;color:#666;padding:12px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent}
+  .tabs button.on{color:#111;border-bottom-color:#2962ff}
   .pane{display:none;flex:1;flex-direction:column;min-height:0;padding:8px}
   .pane.on{display:flex}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-  .chip{background:#1d2330;border-radius:4px;display:flex;align-items:center}
-  .chip button{background:none;border:0;color:#e6e6e6;cursor:pointer;padding:5px 4px 5px 9px;font-size:13px}
-  .chip .x{color:#667;padding:5px 8px 5px 2px}
+  .chip{background:#f1f3f6;border-radius:4px;display:flex;align-items:center}
+  .chip button{background:none;border:0;color:#222;cursor:pointer;padding:5px 4px 5px 9px;font-size:13px}
+  .chip .x{color:#999;padding:5px 8px 5px 2px}
   #quotes,#hot{flex:1;min-height:400px}
-  .add{background:#151923;border:1px solid #2a3040;color:#ccd;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:8px}
-  .video{border-bottom:1px solid #1f2430;padding:14px 6px}
-  .video h4{margin:0 0 6px;font-size:17px} .video .date{color:#889;font-size:13px}
-  .tag{background:#1d2330;border:0;color:#e6e6e6;padding:3px 8px;margin:6px 6px 0 0;border-radius:4px;cursor:pointer}
-  .video p{color:#ccd;line-height:1.6;white-space:pre-line}
+  .add{background:#f3f4f6;border:1px solid #d1d5db;color:#333;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:8px}
+  .video{border-bottom:1px solid #e5e7eb;padding:14px 6px}
+  .video h4{margin:0 0 6px;font-size:17px} .video .date{color:#888;font-size:13px}
+  .tag{background:#f1f3f6;border:0;color:#222;padding:3px 8px;margin:6px 6px 0 0;border-radius:4px;cursor:pointer}
+  .video p{color:#444;line-height:1.6;white-space:pre-line}
   .btn{background:#2962ff;border:0;color:#fff;padding:6px 10px;border-radius:4px;cursor:pointer}
-  a{color:#5b8cff}
+  a{color:#2962ff}
   #mark{display:none}
-  /* 录制模式 */
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
   body.rec #mark{display:block;position:fixed;right:28px;bottom:20px;opacity:.55;font-size:22px;font-weight:600}
@@ -83,8 +77,7 @@
   <!-- 中间 -->
   <div class="center">
     <div class="view" id="v-stock">
-      <div class="bar" id="tf"></div>
-      <div id="chart"></div>
+         <div id="chart"></div>
     </div>
     <div class="view" id="v-fin"><div id="fin" class="fill"></div></div>
     <div class="view" id="v-heat"><div id="heat" class="fill"></div></div>
@@ -111,8 +104,8 @@
 
 <script>
 /* ========= 常改的设置 ========= */
-const CHANNEL = "我的美股频道";
-const SLOGAN  = "美股投资，顺势而为";
+const CHANNEL = "美股频道";
+const SLOGAN  = "股票投资，顺势而为";
 const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
 const STUDIES = ["Volume@tv-basicstudies","MACD@tv-basicstudies"];  // 默认指标
 const VIDEOS = [
@@ -139,15 +132,13 @@ const short = s => s.split(":").pop();
 /* 当前股票 + 周期 */
 let cur = "NASDAQ:TSLA", tf = "D";
 const TF = [["1","1分钟"],["5","5分钟"],["15","15分钟"],["30","30分钟"],["60","1小时"],["240","4小时"],["D","日线"],["W","周线"],["M","月线"]];
-$("tf").innerHTML = TF.map(([v,t]) => `<button data-tf="${v}">${t}</button>`).join("");
-$("tf").onclick = e => { if (e.target.dataset.tf){ tf = e.target.dataset.tf; drawChart(); } };
 
 function drawChart(){
   document.querySelectorAll("#tf button").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
   widget("chart", "advanced-chart", {
-    autosize:true, symbol:cur, interval:tf, timezone:"America/New_York", theme:"dark",
+    autosize:true, symbol:cur, interval:tf, timezone:"America/New_York", theme:"light",
     style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:false,
-    backgroundColor:"#0b0e14", studies:STUDIES
+    backgroundColor:"#ffffff", studies:STUDIES
   });
 }
 function setSymbol(s){
@@ -162,10 +153,10 @@ function showView(v){
   document.querySelectorAll(".view").forEach(el => el.classList.toggle("on", el.id === "v-" + v));
   document.querySelectorAll("#side button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
   if (v === "stock") drawChart();
-  if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"dark", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
-  if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"dark", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
-  if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"dark", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
-  if (v === "cal" && !loaded.cal) widget("cal", "events", {colorTheme:"dark", isTransparent:true, width:"100%", height:"100%", locale:"zh_CN", importanceFilter:"0,1", countryFilter:"us"});
+  if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"light", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
+  if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"light", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
+  if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
+  if (v === "cal" && !loaded.cal) widget("cal", "events", {colorTheme:"light", isTransparent:true, width:"100%", height:"100%", locale:"zh_CN", importanceFilter:"0,1", countryFilter:"us"});
   loaded[v] = true;
 }
 $("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
@@ -176,7 +167,7 @@ const save = () => { try { localStorage.setItem("watchlist", JSON.stringify(watc
 function renderWatch(){
   $("chips").innerHTML = watch.map(s =>
     `<span class="chip"><button onclick="setSymbol('${s}')">${short(s)}</button><button class="x" onclick="removeSym('${s}')">✕</button></span>`).join("");
-  widget("quotes", "market-quotes", {width:"100%", height:"100%", showSymbolLogo:true, isTransparent:true, colorTheme:"dark", locale:"zh_CN",
+  widget("quotes", "market-quotes", {width:"100%", height:"100%", showSymbolLogo:true, isTransparent:true, colorTheme:"light", locale:"zh_CN",
     symbolsGroups:[{name:"我的关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
 }
 function addSym(s){ if (!watch.some(w => short(w) === short(s))) { watch.push(s); save(); renderWatch(); } }
@@ -188,7 +179,7 @@ document.querySelector(".tabs").onclick = e => {
   document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.pane === p));
   document.querySelectorAll(".pane").forEach(el => el.classList.toggle("on", el.id === "p-" + p));
   if (p === "hot" && !hotLoaded){ hotLoaded = true;
-    widget("hot", "hotlists", {colorTheme:"dark", dateRange:"1D", exchange:"US", showChart:true, locale:"zh_CN", isTransparent:true, showSymbolLogo:true, width:"100%", height:"100%"}); }
+    widget("hot", "hotlists", {colorTheme:"light", dateRange:"1D", exchange:"US", showChart:true, locale:"zh_CN", isTransparent:true, showSymbolLogo:true, width:"100%", height:"100%"}); }
 };
 
 /* 视频笔记 */
