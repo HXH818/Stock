@@ -1,6 +1,6 @@
 {
-  "name": "美股投资",
-  "short_name": "美股投资",
+  "name": "美股频道",
+  "short_name": "美股频道",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

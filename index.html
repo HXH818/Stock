@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>美股投资</title>
+<title>美股频道</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -47,6 +47,16 @@
   .video p{color:#444;line-height:1.6;white-space:pre-line}
   .btn{background:#2962ff;border:0;color:#fff;padding:6px 10px;border-radius:4px;cursor:pointer}
   a{color:#2962ff}
+  .hh{font-size:18px;margin:6px 4px 10px}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .box{border:1px solid #e5e7eb;border-radius:8px;padding:8px}
+  .box h3{margin:4px;font-size:16px}
+  .state{font-size:44px;font-weight:800;margin:4px 6px}
+  .bull{color:#089981} .bear{color:#f23645}
+  .kv{color:#555;margin:0 6px 8px;font-size:14px;line-height:1.7}
+  .note{color:#888;font-size:12px;margin:12px 4px}
+  .hh small{font-size:12px;color:#888;font-weight:400;margin-left:8px}
+  svg.spark{width:100%;height:260px;display:block}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -65,6 +75,7 @@
   <!-- 左侧菜单 -->
   <div class="side" id="side">
     <div class="cap">数据中心</div>
+    <button data-view="home">大盘多空</button>
     <button data-view="stock">个股分析</button>
     <button data-view="fin">财务数据</button>
     <button data-view="heat">板块热力图</button>
@@ -76,8 +87,13 @@
 
   <!-- 中间 -->
   <div class="center">
+    <div class="view" id="v-home">
+      <h2 class="hh">大盘多空 · 日线 BBI <small id="upd"></small></h2>
+      <div class="duo" id="bbiCards"></div>
+      <p class="note">规则：收盘价在 BBI 之上为多，之下为空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。仅为个人观点，不构成投资建议。</p>
+    </div>
     <div class="view" id="v-stock">
-         <div id="chart"></div>
+      <div id="chart"></div>
     </div>
     <div class="view" id="v-fin"><div id="fin" class="fill"></div></div>
     <div class="view" id="v-heat"><div id="heat" class="fill"></div></div>
@@ -89,7 +105,7 @@
   <!-- 右侧 -->
   <div class="right">
     <div class="tabs">
-      <button data-pane="watch" class="on">关注</button>
+      <button data-pane="watch" class="on">我的关注</button>
       <button data-pane="hot">热门股</button>
     </div>
     <div class="pane on" id="p-watch">
@@ -104,7 +120,7 @@
 
 <script>
 /* ========= 常改的设置 ========= */
-const CHANNEL = "美股投资";
+const CHANNEL = "美股频道";
 const SLOGAN  = "";
 const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
 const STUDIES = ["Volume@tv-basicstudies","MACD@tv-basicstudies"];  // 默认指标
@@ -147,12 +163,37 @@ function setSymbol(s){
 }
 $("searchForm").onsubmit = e => { e.preventDefault(); if ($("searchIn").value.trim()) setSymbol($("searchIn").value); };
 
+/* 首页：BBI 多空 */
+function lineChart(it){
+  const W=600,H=260,P=34, all=it.closes.concat(it.bbis);
+  const lo=Math.min(...all), hi=Math.max(...all), n=it.closes.length;
+  const X=i=>P+(W-P-8)*i/(n-1), Y=v=>8+(H-36)*(hi-v)/(hi-lo||1);
+  const path=a=>a.map((v,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)).join("");
+  const ticks=[0,Math.floor(n/2),n-1].map(i=>`<text x="${X(i)}" y="${H-6}" font-size="11" fill="#888" text-anchor="${i===n-1?"end":i?"middle":"start"}">${it.dates[i]}</text>`).join("");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <text x="2" y="16" font-size="11" fill="#888">${hi.toFixed(0)}</text><text x="2" y="${H-30}" font-size="11" fill="#888">${lo.toFixed(0)}</text>
+    <path d="${path(it.closes)}" fill="none" stroke="#2962ff" stroke-width="1.6"/>
+    <path d="${path(it.bbis)}" fill="none" stroke="#f7a600" stroke-width="1.6"/>${ticks}</svg>
+    <div class="kv"><span style="color:#2962ff">━ 收盘价</span>　<span style="color:#f7a600">━ BBI</span></div>`;
+}
+function loadBBI(){
+  fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+    $("upd").textContent = "更新于 " + d.updated;
+    $("bbiCards").innerHTML = d.items.map(it => `
+      <div class="box"><h3>${it.name}</h3>
+        <div class="state ${it.state === "多" ? "bull" : "bear"}">${it.state === "多" ? "▲ 多" : "▼ 空"}</div>
+        <div class="kv">${it.date} 收盘 ${it.close}　BBI ${it.bbi}　偏离 ${it.pct > 0 ? "+" : ""}${it.pct}%<br>已持续 ${it.days} 个交易日</div>
+        ${lineChart(it)}</div>`).join("");
+  }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
+}
+
 /* 左侧菜单 */
 const loaded = {};
 function showView(v){
   document.querySelectorAll(".view").forEach(el => el.classList.toggle("on", el.id === "v-" + v));
   document.querySelectorAll("#side button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
   if (v === "stock") drawChart();
+  if (v === "home" && !loaded.home) loadBBI();
   if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"light", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
   if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"light", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
   if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
@@ -161,14 +202,14 @@ function showView(v){
 }
 $("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
 
-/* 右侧：关注 / 热门股 */
+/* 右侧：我的关注 / 热门股 */
 let watch; try { watch = JSON.parse(localStorage.getItem("watchlist")) || DEFAULT; } catch(e){ watch = DEFAULT; }
 const save = () => { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch(e){} };
 function renderWatch(){
   $("chips").innerHTML = watch.map(s =>
     `<span class="chip"><button onclick="setSymbol('${s}')">${short(s)}</button><button class="x" onclick="removeSym('${s}')">✕</button></span>`).join("");
   widget("quotes", "market-quotes", {width:"100%", height:"100%", showSymbolLogo:true, isTransparent:true, colorTheme:"light", locale:"zh_CN",
-    symbolsGroups:[{name:"关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
+    symbolsGroups:[{name:"我的关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
 }
 function addSym(s){ if (!watch.some(w => short(w) === short(s))) { watch.push(s); save(); renderWatch(); } }
 function removeSym(s){ watch = watch.filter(x => x !== s); save(); renderWatch(); }
@@ -209,7 +250,7 @@ document.addEventListener("fullscreenchange", () => { if (!document.fullscreenEl
 
 /* 启动 */
 renderWatch();
-showView("stock");
+showView("home");
 </script>
 </body>
 </html>
