@@ -51,12 +51,18 @@
   .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .box{border:1px solid #e5e7eb;border-radius:8px;padding:8px}
   .box h3{margin:4px;font-size:16px}
-  .state{font-size:44px;font-weight:800;margin:4px 6px}
+  .row{margin:6px 6px 14px}
+  .lbl{font-size:17px;margin-bottom:6px}
+  .lbl b{font-weight:700}
+  .trk{display:flex;align-items:center;gap:10px}
+  .bar{position:relative;flex:1;height:22px;background:#e6e6e6;border-radius:3px}
+  .bar .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#999}
+  .bar .fillb{position:absolute;top:0;bottom:0}
+  .val{width:64px;text-align:right;font-size:18px;font-weight:600}
+  .sub{color:#888;font-size:12px;margin-top:4px}
   .bull{color:#089981} .bear{color:#f23645}
-  .kv{color:#555;margin:0 6px 8px;font-size:14px;line-height:1.7}
   .note{color:#888;font-size:12px;margin:12px 4px}
   .hh small{font-size:12px;color:#888;font-weight:400;margin-left:8px}
-  svg.spark{width:100%;height:260px;display:block}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -88,9 +94,9 @@
   <!-- 中间 -->
   <div class="center">
     <div class="view" id="v-home">
-      <h2 class="hh">大盘多空 · 日线 BBI <small id="upd"></small></h2>
+      <h2 class="hh">大盘多空 · BBI <small id="upd"></small></h2>
       <div class="duo" id="bbiCards"></div>
-      <p class="note">规则：收盘价在 BBI 之上为多，之下为空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。仅为个人观点，不构成投资建议。</p>
+      <p class="note">规则：价格在 BBI 之上为偏多，之下为偏空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。条带范围 ±5%，超出时顶格显示。仅为个人观点，不构成投资建议。</p>
     </div>
     <div class="view" id="v-stock">
       <div id="chart"></div>
@@ -164,26 +170,22 @@ function setSymbol(s){
 $("searchForm").onsubmit = e => { e.preventDefault(); if ($("searchIn").value.trim()) setSymbol($("searchIn").value); };
 
 /* 首页：BBI 多空 */
-function lineChart(it){
-  const W=600,H=260,P=34, all=it.closes.concat(it.bbis);
-  const lo=Math.min(...all), hi=Math.max(...all), n=it.closes.length;
-  const X=i=>P+(W-P-8)*i/(n-1), Y=v=>8+(H-36)*(hi-v)/(hi-lo||1);
-  const path=a=>a.map((v,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)).join("");
-  const ticks=[0,Math.floor(n/2),n-1].map(i=>`<text x="${X(i)}" y="${H-6}" font-size="11" fill="#888" text-anchor="${i===n-1?"end":i?"middle":"start"}">${it.dates[i]}</text>`).join("");
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <text x="2" y="16" font-size="11" fill="#888">${hi.toFixed(0)}</text><text x="2" y="${H-30}" font-size="11" fill="#888">${lo.toFixed(0)}</text>
-    <path d="${path(it.closes)}" fill="none" stroke="#2962ff" stroke-width="1.6"/>
-    <path d="${path(it.bbis)}" fill="none" stroke="#f7a600" stroke-width="1.6"/>${ticks}</svg>
-    <div class="kv"><span style="color:#2962ff">━ 收盘价</span>　<span style="color:#f7a600">━ BBI</span></div>`;
+const RANGE = 5;   // 条带范围 ±5%
+function bbiRow(label, r, unit){
+  const col = r.bull ? "#089981" : "#f23645";
+  const w = Math.min(Math.abs(r.pct), RANGE) / RANGE * 50;
+  const pos = r.pct >= 0 ? `left:50%` : `right:50%`;
+  return `<div class="row">
+    <div class="lbl">${label}：<b class="${r.bull ? "bull" : "bear"}">${r.bull ? "偏多" : "偏空"}</b></div>
+    <div class="trk"><div class="bar"><div class="mid"></div><div class="fillb" style="${pos};width:${w}%;background:${col}"></div></div>
+      <div class="val ${r.bull ? "bull" : "bear"}">${r.pct > 0 ? "+" : ""}${r.pct}%</div></div>
+    <div class="sub">价格 ${r.close} · BBI ${r.bbi} · 已持续 ${r.bars} ${unit}</div></div>`;
 }
 function loadBBI(){
   fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
     $("upd").textContent = "更新于 " + d.updated;
-    $("bbiCards").innerHTML = d.items.map(it => `
-      <div class="box"><h3>${it.name}</h3>
-        <div class="state ${it.state === "多" ? "bull" : "bear"}">${it.state === "多" ? "▲ 多" : "▼ 空"}</div>
-        <div class="kv">${it.date} 收盘 ${it.close}　BBI ${it.bbi}　偏离 ${it.pct > 0 ? "+" : ""}${it.pct}%<br>已持续 ${it.days} 个交易日</div>
-        ${lineChart(it)}</div>`).join("");
+    $("bbiCards").innerHTML = d.items.map(it => `<div class="box"><h3>${it.name}</h3>
+      ${bbiRow("日线", it.d1, "天")}${bbiRow("4H", it.h4, "根")}</div>`).join("");
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
 }
 
