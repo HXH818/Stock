@@ -158,7 +158,7 @@
 const CHANNEL = "美股频道";
 const SLOGAN  = "";
 const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
-const STUDIES = [{id:"MAExp@tv-basicstudies", inputs:{length:20}}, "MACD@tv-basicstudies"];  // EMA20 + MACD
+const STUDIES = [{id:"MAExp@tv-basicstudies", inputs:{length:20}}, {id:"MACD@tv-basicstudies"}];
 const VIDEOS = [
   { date:"2027-01-05", title:"第1期：示例 —— 芯片股怎么看", youtube:"",
     symbols:["NVDA","AMD","TSM"], notes:"要点一：……\n要点二：……" }
@@ -188,7 +188,7 @@ function drawChart(){
   document.querySelectorAll("#tf button").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
   widget("chart", "advanced-chart", {
     autosize:true, symbol:cur, interval:tf, timezone:"America/New_York", theme:"light",
-    style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:true,
+    style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:true, hide_volume:true,
     backgroundColor:"#ffffff", studies:STUDIES
   });
 }
