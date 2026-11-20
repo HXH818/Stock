@@ -2,8 +2,12 @@ name: Update BBI
 
 on:
   schedule:
-  - cron: "5,35 * * * 0-5"     # 周日到周五，每小时第 5 和第 35 分钟运行
-  workflow_dispatch:          # 允许手动运行
+    - cron: "5,35 * * * 0-5"     # 备用：GitHub 自带定时（不准时）
+  workflow_dispatch:             # cron-job.org 每 30 分钟从这里触发
+
+concurrency:
+  group: bbi-update
+  cancel-in-progress: false
 
 permissions:
   contents: write
