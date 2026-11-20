@@ -8,6 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#ffffff">
+<script src="https://unpkg.com/lightweight-charts@5.3.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#ffffff;color:#1a1a1a;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
@@ -75,6 +76,11 @@
   table.sc th:nth-child(-n+3),table.sc td:nth-child(-n+3){text-align:left}
   table.sc tr:hover td{background:#f8faff}
   table.sc td a{color:#2962ff;cursor:pointer;font-weight:600}
+  .bchead{display:flex;align-items:baseline;gap:14px;margin:6px 4px 8px;font-size:14px;color:#555}
+  .bchead b{font-size:20px;color:#111}
+  .bchead a{margin-left:auto;color:#2962ff;cursor:pointer;font-size:13px}
+  #bc{flex:1;min-height:620px}
+  .bclegend{font-size:12px;color:#888;margin:6px 4px}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -116,6 +122,11 @@
       <h2 class="hh">优质公司 · 日线 BBI <small id="scUpd"></small></h2>
       <div id="scBody"><p class="note">加载中…</p></div>
     </div>
+    <div class="view" id="v-bbi">
+      <div class="bchead"><b id="bcT"></b><span id="bcInfo"></span><a id="bcTV">在 TradingView 中查看 →</a></div>
+      <div id="bc"></div>
+      <div class="bclegend">BBI：<span style="color:#089981">━ 偏多</span> <span style="color:#f23645">━ 偏空</span>　<span style="color:#2962ff">━ DIF</span>　<span style="color:#e91e63">━ DEA</span>　MACD(12,26,9)</div>
+    </div>
     <div class="view" id="v-stock">
       <div id="chart"></div>
     </div>
@@ -147,7 +158,7 @@
 const CHANNEL = "美股频道";
 const SLOGAN  = "";
 const DEFAULT = ["AMEX:SPY","NASDAQ:QQQ","NASDAQ:AAPL","NASDAQ:NVDA","NASDAQ:MSFT","NASDAQ:TSLA"];
-const STUDIES = ["Volume@tv-basicstudies","MACD@tv-basicstudies"];  // 默认指标
+const STUDIES = ["MACD@tv-basicstudies"];  // TradingView 图表只保留 MACD
 const VIDEOS = [
   { date:"2027-01-05", title:"第1期：示例 —— 芯片股怎么看", youtube:"",
     symbols:["NVDA","AMD","TSM"], notes:"要点一：……\n要点二：……" }
@@ -177,7 +188,7 @@ function drawChart(){
   document.querySelectorAll("#tf button").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
   widget("chart", "advanced-chart", {
     autosize:true, symbol:cur, interval:tf, timezone:"America/New_York", theme:"light",
-    style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:false,
+    style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:true,
     backgroundColor:"#ffffff", studies:STUDIES
   });
 }
@@ -248,7 +259,7 @@ const SC_COLS = [
 let scData = null, scSort = ["pct", -1];
 const pctf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
 function scCell(r, k){
-  if (k === "ticker") return `<a onclick="setSymbol('${r.ticker}')">${r.ticker}</a>`;
+  if (k === "ticker") return `<a onclick="openChart('${r.ticker}')">${r.ticker}</a>`;
   if (k === "sector") return SEC[r.sector] || r.sector;
   if (k === "pct") return `<span class="${r.bull ? "bull" : "bear"}">${r.bull ? "▲" : "▼"} ${r.pct > 0 ? "+" : ""}${r.pct}%</span>`;
   if (["rev_growth","op_margin","fcf_margin"].includes(k)) return pctf(r[k]);
@@ -265,7 +276,7 @@ function renderScreen(){
   $("scBody").innerHTML = `
     <div class="breadth">标普 500 站上日线 BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b>（${d.breadth.above} / ${d.breadth.total}）
       　·　优质公司 ${d.rows.length} 家，站上 BBI <b class="bull">${up}</b> 家</div>
-    <div class="newlist">今日新站上 BBI：${fresh.length ? fresh.map(r => `<button class="tag" onclick="setSymbol('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
+    <div class="newlist">今日新站上 BBI：${fresh.length ? fresh.map(r => `<button class="tag" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
     <p class="note">基本面标准（排除金融板块）：营收增长 &gt; 5%，营业利润率 &gt; 15%，自由现金流/营收 &gt; 10%，净负债/EBITDA &lt; 2。基本面数据更新于 ${d.fund_date}，来源雅虎财经，仅供初筛参考。仅为个人观点，不构成投资建议。</p>`;
@@ -275,6 +286,44 @@ function loadScreen(){
   fetch("screen.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
     scData = d; $("scUpd").textContent = `收盘日 ${d.asof} · 更新于 ${d.updated}`; renderScreen();
   }).catch(() => { $("scBody").innerHTML = '<p class="note">还没有选股数据：请到 Actions → Update BBI → Run workflow，勾选“立即运行选股”后运行一次。</p>'; });
+}
+
+/* 自绘图表：K 线 + BBI（主图），MACD（副图） */
+const smaA = (a, n) => a.map((_, i) => i < n - 1 ? null : a.slice(i - n + 1, i + 1).reduce((s, x) => s + x, 0) / n);
+function emaA(a, n){ const k = 2 / (n + 1); let e = a[0]; return a.map((x, i) => (e = i ? x * k + e * (1 - k) : x)); }
+let lwChart = null;
+function openChart(t){
+  fetch(`charts/${t}.json?t=` + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); })
+    .then(d => { showView("bbi"); drawBBI(d); }).catch(() => setSymbol(t));
+}
+function drawBBI(d){
+  const L = LightweightCharts, n = d.c.length;
+  if (lwChart) lwChart.remove();
+  lwChart = L.createChart($("bc"), {autoSize:true,
+    layout:{background:{color:"#ffffff"}, textColor:"#333", panes:{separatorColor:"#e5e7eb"}},
+    grid:{vertLines:{color:"#f3f4f6"}, horzLines:{color:"#f3f4f6"}},
+    rightPriceScale:{borderColor:"#e5e7eb"}, timeScale:{borderColor:"#e5e7eb"}});
+  const T = d.d;
+  lwChart.addSeries(L.CandlestickSeries, {upColor:"#089981", downColor:"#f23645", borderVisible:false, wickUpColor:"#089981", wickDownColor:"#f23645"})
+    .setData(T.map((t, i) => ({time:t, open:d.o[i], high:d.h[i], low:d.l[i], close:d.c[i]})));
+  const m3 = smaA(d.c,3), m6 = smaA(d.c,6), m12 = smaA(d.c,12), m24 = smaA(d.c,24);
+  const bbi = d.c.map((_, i) => m24[i] == null ? null : (m3[i] + m6[i] + m12[i] + m24[i]) / 4);
+  // BBI 线按多空着色：收盘价 > BBI 为绿，< BBI 为红
+  lwChart.addSeries(L.LineSeries, {color:"#089981", lineWidth:2, priceLineVisible:false, crosshairMarkerVisible:false})
+    .setData(T.map((t, i) => bbi[i] == null ? {time:t} : {time:t, value:bbi[i], color: d.c[i] > bbi[i] ? "#089981" : "#f23645"}));
+  // MACD(12,26,9)：DIF = EMA12 − EMA26，DEA = EMA9(DIF)，柱 = 2 × (DIF − DEA)
+  const e12 = emaA(d.c,12), e26 = emaA(d.c,26), dif = e12.map((x, i) => x - e26[i]), dea = emaA(dif, 9);
+  const S = 34, pick = (arr, f) => T.map((t, i) => i < S ? {time:t} : f(t, arr[i], i));
+  lwChart.addSeries(L.HistogramSeries, {priceLineVisible:false, lastValueVisible:false}, 1)
+    .setData(pick(dif, (t, v, i) => { const h = 2 * (v - dea[i]); return {time:t, value:h, color: h >= 0 ? "#089981" : "#f23645"}; }));
+  lwChart.addSeries(L.LineSeries, {color:"#2962ff", lineWidth:1, priceLineVisible:false, crosshairMarkerVisible:false}, 1).setData(pick(dif, (t, v) => ({time:t, value:v})));
+  lwChart.addSeries(L.LineSeries, {color:"#e91e63", lineWidth:1, priceLineVisible:false, crosshairMarkerVisible:false}, 1).setData(pick(dea, (t, v) => ({time:t, value:v})));
+  lwChart.panes()[1].setHeight(170);
+  lwChart.timeScale().setVisibleLogicalRange({from: n - 130, to: n + 2});
+  const c = d.c[n-1], b = bbi[n-1], up = c > b;
+  $("bcT").textContent = d.t;
+  $("bcInfo").innerHTML = `${d.name}　收盘 ${c}　BBI ${b.toFixed(2)}　<b class="${up ? "bull" : "bear"}" style="font-size:14px">${up ? "偏多" : "偏空"} ${((c / b - 1) * 100).toFixed(2)}%</b>　（${T[n-1]}）`;
+  $("bcTV").onclick = () => setSymbol(d.t);
 }
 
 /* 左侧菜单 */

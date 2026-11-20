@@ -97,7 +97,7 @@ def main():
         save("fundamentals.json", fund)
 
     # 日线：批量下载全部成分股
-    px = yf.download(tickers, period="6mo", interval="1d", auto_adjust=False, progress=False, threads=True)
+    px = yf.download(tickers, period="1y", interval="1d", auto_adjust=False, progress=False, threads=True)
     close = px["Close"] if isinstance(px.columns, pd.MultiIndex) else px[["Close"]].rename(columns={"Close": tickers[0]})
     tech = bbi_table(close)
 
@@ -108,6 +108,16 @@ def main():
         if not f or t not in tech or not passes(f):
             continue
         rows.append({**m, **tech[t], **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in f.items()}})
+
+    # 为清单里的每只股票保存 K 线数据（网页画 BBI + MACD 图用）
+    os.makedirs("charts", exist_ok=True)
+    for fn in os.listdir("charts"):
+        os.remove(os.path.join("charts", fn))
+    for r in rows:
+        t = r["ticker"]
+        k = pd.DataFrame({"o": px["Open"][t], "h": px["High"][t], "l": px["Low"][t], "c": close[t]}).dropna().tail(220)
+        save(f"charts/{t}.json", {"t": t, "name": r["name"], "d": [x.strftime("%Y-%m-%d") for x in k.index],
+                                  **{c: [round(float(v), 2) for v in k[c]] for c in "ohlc"}})
 
     n_above = sum(1 for v in tech.values() if v["bull"])
     out = {"run_date": today, "asof": close.index[-1].strftime("%Y-%m-%d"),
