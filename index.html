@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>美股监测</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e14">
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#0b0e14;color:#e6e6e6;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
@@ -79,7 +83,6 @@
   <!-- 中间 -->
   <div class="center">
     <div class="view" id="v-stock">
-      <div id="info"></div>
       <div class="bar" id="tf"></div>
       <div id="chart"></div>
     </div>
@@ -141,7 +144,6 @@ $("tf").onclick = e => { if (e.target.dataset.tf){ tf = e.target.dataset.tf; dra
 
 function drawChart(){
   document.querySelectorAll("#tf button").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
-  widget("info", "symbol-info", {symbol:cur, width:"100%", locale:"zh_CN", colorTheme:"dark", isTransparent:true});
   widget("chart", "advanced-chart", {
     autosize:true, symbol:cur, interval:tf, timezone:"America/New_York", theme:"dark",
     style:"1", locale:"zh_CN", allow_symbol_change:true, hide_side_toolbar:false,
