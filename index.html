@@ -65,6 +65,16 @@
   .vixbox{display:flex;justify-content:center;margin:0 0 10px}
   .vixbox svg{width:340px;height:auto}
   .hh small{font-size:12px;color:#888;font-weight:400;margin-left:8px}
+  .breadth{font-size:15px;margin:4px 4px 14px}
+  .breadth b{font-size:22px}
+  .newlist{margin:0 4px 14px}
+  .newlist .tag{font-size:14px}
+  table.sc{border-collapse:collapse;width:100%;font-size:13px}
+  table.sc th{position:sticky;top:0;background:#f6f7f9;cursor:pointer;user-select:none;text-align:right;padding:7px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+  table.sc td{text-align:right;padding:6px 8px;border-bottom:1px solid #f0f1f3;white-space:nowrap}
+  table.sc th:nth-child(-n+3),table.sc td:nth-child(-n+3){text-align:left}
+  table.sc tr:hover td{background:#f8faff}
+  table.sc td a{color:#2962ff;cursor:pointer;font-weight:600}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -83,7 +93,8 @@
   <!-- 左侧菜单 -->
   <div class="side" id="side">
     <div class="cap">数据中心</div>
-    <button data-view="home">大盘指数</button>
+    <button data-view="home">大盘多空</button>
+    <button data-view="screen">BBI 选股</button>
     <button data-view="stock">个股分析</button>
     <button data-view="fin">财务数据</button>
     <button data-view="heat">板块热力图</button>
@@ -96,10 +107,14 @@
   <!-- 中间 -->
   <div class="center">
     <div class="view" id="v-home">
-      <h2 class="hh">大盘多空 <small id="upd"></small></h2>
+      <h2 class="hh">大盘多空 · BBI <small id="upd"></small></h2>
       <div class="vixbox" id="vix"></div>
       <div class="duo" id="bbiCards"></div>
       <p class="note">规则：价格在 BBI 之上为偏多，之下为偏空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。条带范围 ±5%，超出时顶格显示。仅为个人观点，不构成投资建议。</p>
+    </div>
+    <div class="view" id="v-screen">
+      <h2 class="hh">优质公司 · 日线 BBI <small id="scUpd"></small></h2>
+      <div id="scBody"><p class="note">加载中…</p></div>
     </div>
     <div class="view" id="v-stock">
       <div id="chart"></div>
@@ -224,6 +239,44 @@ function loadBBI(){
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
 }
 
+/* BBI 选股 */
+const SEC = {"Information Technology":"信息技术","Health Care":"医疗","Consumer Discretionary":"可选消费","Consumer Staples":"必需消费",
+  "Industrials":"工业","Communication Services":"通信服务","Energy":"能源","Materials":"原材料","Utilities":"公用事业","Real Estate":"房地产","Financials":"金融"};
+const SC_COLS = [
+  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘"],["pct","BBI 偏离"],["days","持续(天)"],
+  ["rev_growth","营收增长"],["op_margin","营业利润率"],["fcf_margin","FCF/营收"],["nd_ebitda","净负债/EBITDA"]];
+let scData = null, scSort = ["pct", -1];
+const pctf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
+function scCell(r, k){
+  if (k === "ticker") return `<a onclick="setSymbol('${r.ticker}')">${r.ticker}</a>`;
+  if (k === "sector") return SEC[r.sector] || r.sector;
+  if (k === "pct") return `<span class="${r.bull ? "bull" : "bear"}">${r.bull ? "▲" : "▼"} ${r.pct > 0 ? "+" : ""}${r.pct}%</span>`;
+  if (["rev_growth","op_margin","fcf_margin"].includes(k)) return pctf(r[k]);
+  if (k === "nd_ebitda") return r.net_cash ? "净现金" : (r[k] == null ? "—" : r[k].toFixed(2));
+  return r[k];
+}
+function renderScreen(){
+  const d = scData, [k, dir] = scSort;
+  const rows = [...d.rows].sort((a, b) => {
+    const x = k === "nd_ebitda" && a.net_cash ? -99 : a[k], y = k === "nd_ebitda" && b.net_cash ? -99 : b[k];
+    return (x > y ? 1 : x < y ? -1 : 0) * dir;
+  });
+  const fresh = d.rows.filter(r => r.new), up = d.rows.filter(r => r.bull).length;
+  $("scBody").innerHTML = `
+    <div class="breadth">标普 500 站上日线 BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b>（${d.breadth.above} / ${d.breadth.total}）
+      　·　优质公司 ${d.rows.length} 家，站上 BBI <b class="bull">${up}</b> 家</div>
+    <div class="newlist">今日新站上 BBI：${fresh.length ? fresh.map(r => `<button class="tag" onclick="setSymbol('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
+    <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+    <p class="note">基本面标准（排除金融板块）：营收增长 &gt; 5%，营业利润率 &gt; 15%，自由现金流/营收 &gt; 10%，净负债/EBITDA &lt; 2。基本面数据更新于 ${d.fund_date}，来源雅虎财经，仅供初筛参考。仅为个人观点，不构成投资建议。</p>`;
+}
+function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }
+function loadScreen(){
+  fetch("screen.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+    scData = d; $("scUpd").textContent = `收盘日 ${d.asof} · 更新于 ${d.updated}`; renderScreen();
+  }).catch(() => { $("scBody").innerHTML = '<p class="note">还没有选股数据：请到 Actions → Update BBI → Run workflow，勾选“立即运行选股”后运行一次。</p>'; });
+}
+
 /* 左侧菜单 */
 const loaded = {};
 function showView(v){
@@ -231,6 +284,7 @@ function showView(v){
   document.querySelectorAll("#side button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
   if (v === "stock") drawChart();
   if (v === "home" && !loaded.home) loadBBI();
+  if (v === "screen" && !loaded.screen) loadScreen();
   if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"light", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
   if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"light", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
   if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
