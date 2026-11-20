@@ -81,6 +81,11 @@
   .bchead a{margin-left:auto;color:#2962ff;cursor:pointer;font-size:13px}
   #bc{flex:1;min-height:620px}
   .bclegend{font-size:12px;color:#888;margin:6px 4px}
+  .secrow{display:grid;grid-template-columns:60px 80px 1fr 70px 110px;align-items:center;gap:10px;padding:9px 8px;border-bottom:1px solid #f0f1f3;cursor:pointer}
+  .secrow:hover{background:#f8faff}
+  .secrow .code{font-weight:700} .secrow .nm{color:#444}
+  .secrow .st{font-size:13px}
+  .star{color:#f7a600;font-weight:700;margin-left:4px}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -101,6 +106,7 @@
     <div class="cap">数据中心</div>
     <button data-view="home">大盘多空</button>
     <button data-view="screen">BBI 选股</button>
+    <button data-view="sector">板块</button>
     <button data-view="cal">财经日历</button>
     <div class="cap">我的频道</div>
     <button data-view="videos">视频笔记</button>
@@ -117,6 +123,11 @@
     <div class="view" id="v-screen">
       <h2 class="hh">优质公司 · 日线 BBI <small id="scUpd"></small></h2>
       <div id="scBody"><p class="note">加载中…</p></div>
+    </div>
+    <div class="view" id="v-sector">
+      <h2 class="hh">板块 BBI · 日线 <small id="secUpd"></small></h2>
+      <div id="secList"><p class="note">加载中…</p></div>
+      <p class="note">按偏离度从强到弱排序。左绿偏多、右红偏空，条带范围 ±5%。★新 = 今天由空翻多。点任意一行查看 K 线 + BBI + MACD。仅为个人观点，不构成投资建议。</p>
     </div>
     <div class="view" id="v-bbi">
       <div class="bchead"><b id="bcT"></b><span id="bcInfo"></span><a id="bcTV">在我的 TradingView 中打开 →</a></div>
@@ -252,6 +263,22 @@ function loadBBI(){
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
 }
 
+/* 板块 BBI（日线） */
+function loadSector(){
+  fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+    if (!d.sectors || !d.sectors.length) throw 0;
+    $("secUpd").textContent = "更新于 " + d.updated;
+    $("secList").innerHTML = [...d.sectors].sort((a, b) => b.pct - a.pct).map(s => {
+      const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
+      return `<div class="secrow" onclick="openChart('${s.ticker}')">
+        <span class="code">${s.ticker}</span><span class="nm">${s.name}</span>
+        <div class="bar"><div class="mid"></div><div class="fillb" style="${s.pct >= 0 ? "right" : "left"}:50%;width:${w}%;background:${col}"></div></div>
+        <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
+        <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span></div>`;
+    }).join("");
+  }).catch(() => { $("secList").innerHTML = '<p class="note">还没有板块数据：请到 Actions → Update BBI → Run workflow 运行一次。</p>'; });
+}
+
 /* BBI 选股 */
 const SEC = {"Information Technology":"信息技术","Health Care":"医疗","Consumer Discretionary":"可选消费","Consumer Staples":"必需消费",
   "Industrials":"工业","Communication Services":"通信服务","Energy":"能源","Materials":"原材料","Utilities":"公用事业","Real Estate":"房地产","Financials":"金融"};
@@ -336,6 +363,7 @@ function showView(v){
   if (v === "stock") drawChart();
   if (v === "home" && !loaded.home) loadBBI();
   if (v === "screen" && !loaded.screen) loadScreen();
+  if (v === "sector") loadSector();
   if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"light", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
   if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"light", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
   if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});

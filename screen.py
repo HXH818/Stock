@@ -111,8 +111,10 @@ def main():
 
     # 为清单里的每只股票保存 K 线数据（网页画 BBI + MACD 图用）
     os.makedirs("charts", exist_ok=True)
-    for fn in os.listdir("charts"):
-        os.remove(os.path.join("charts", fn))
+    keep = {r["ticker"] for r in rows}
+    for t in {r["ticker"] for r in prev.get("rows", [])} - keep:   # 只删掉已经不在清单里的股票（板块 ETF 的图不动）
+        try: os.remove(os.path.join("charts", f"{t}.json"))
+        except FileNotFoundError: pass
     for r in rows:
         t = r["ticker"]
         k = pd.DataFrame({"o": px["Open"][t], "h": px["High"][t], "l": px["Low"][t], "c": close[t]}).dropna().tail(220)

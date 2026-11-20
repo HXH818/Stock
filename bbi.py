@@ -13,6 +13,10 @@ SYMBOLS = [
 ]
 TZ = "America/New_York"
 
+# 11 个板块 ETF（只看日线）
+SECTORS = [("XLK", "科技"), ("XLC", "通信"), ("XLY", "可选消费"), ("XLP", "必需消费"), ("XLV", "医疗"),
+           ("XLF", "金融"), ("XLI", "工业"), ("XLE", "能源"), ("XLB", "原材料"), ("XLU", "公用事业"), ("XLRE", "房地产")]
+
 def bbi(c):
     return (c.rolling(3).mean() + c.rolling(6).mean()
             + c.rolling(12).mean() + c.rolling(24).mean()) / 4
@@ -54,6 +58,23 @@ if __name__ == "__main__":
             })
         except Exception as e:
             print("失败:", tk, e)
+    # 板块：日线 BBI，并保存 K 线数据供网页画图
+    import os
+    os.makedirs("charts", exist_ok=True)
+    out["sectors"] = []
+    for tk, name in SECTORS:
+        try:
+            h = yf.Ticker(tk).history(period="1y", interval="1d")[["Open", "High", "Low", "Close"]].dropna()
+            r = summarize(h["Close"])
+            out["sectors"].append({"ticker": tk, "name": name, **r, "new": r["bull"] and r["bars"] == 1})
+            k = h.tail(220)
+            with open(f"charts/{tk}.json", "w", encoding="utf-8") as f:
+                json.dump({"t": tk, "name": name + "板块 ETF", "d": [x.strftime("%Y-%m-%d") for x in k.index],
+                           "o": [round(float(v), 2) for v in k["Open"]], "h": [round(float(v), 2) for v in k["High"]],
+                           "l": [round(float(v), 2) for v in k["Low"]], "c": [round(float(v), 2) for v in k["Close"]]}, f)
+        except Exception as e:
+            print("失败:", tk, e)
+
     try:  # VIX：只取最新值和前一日收盘
         v = fetch("^VIX", "10d", "1d")
         out["vix"] = {"value": round(float(v.iloc[-1]), 2),
