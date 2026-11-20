@@ -1,0 +1,26 @@
+name: Update BBI
+
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"   # 周一到周五 UTC 21:30（美东收盘后）
+  workflow_dispatch:          # 允许手动运行
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install yfinance pandas
+      - run: python bbi.py
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data.json
+          git commit -m "update BBI data" || echo "no change"
+          git push
