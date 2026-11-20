@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "5,35 * * * 0-5"     # 备用：GitHub 自带定时（不准时）
   workflow_dispatch:             # cron-job.org 每 30 分钟从这里触发
+    inputs:
+      force:
+        description: "立即运行选股（不等收盘）"
+        type: boolean
+        default: false
 
 concurrency:
   group: bbi-update
@@ -15,16 +20,22 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install yfinance pandas
+      - run: pip install yfinance pandas requests lxml
       - run: python bbi.py
+      - name: 选股（每天收盘后一次）
+        run: python screen.py
+        continue-on-error: true
+        env:
+          FORCE: ${{ inputs.force }}
       - run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add data.json
+          git add -A
           git commit -m "update BBI data" || echo "no change"
           git push
