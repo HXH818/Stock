@@ -329,7 +329,7 @@ function renderScreen(){
   const fresh = d.rows.filter(r => r.new), broke = d.rows.filter(r => !r.bull && r.days === 1), up = d.rows.filter(r => r.bull).length;
   const upPct = d.rows.length ? (up / d.rows.length * 100).toFixed(1) : "0.0";
   $("scBody").innerHTML = `
-    <div class="breadth">标普 500 站上BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b> (${d.breadth.above}/${d.breadth.total})
+    <div class="breadth">标普500站上BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b> (${d.breadth.above}/${d.breadth.total})
       &nbsp;&nbsp;|&nbsp;&nbsp; 优质公司站上BBI：<b class="${upPct >= 50 ? "bull" : "bear"}">${upPct}%</b> (${up}/${d.rows.length})</div>
     <div class="newlist">今日站上BBI：${fresh.length ? fresh.map(r => `<button class="tag bull" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <div class="newlist">今日跌破BBI：${broke.length ? broke.map(r => `<button class="tag bear" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
