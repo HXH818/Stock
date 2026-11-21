@@ -15,6 +15,9 @@ SYMBOLS = [
 # 11 个板块 ETF（只看日线）
 SECTORS = [("XLK", "科技"), ("XLC", "通信"), ("XLY", "可选消费"), ("XLP", "必需消费"), ("XLV", "医疗"),
            ("XLF", "金融"), ("XLI", "工业"), ("XLE", "能源"), ("XLB", "原材料"), ("XLU", "公用事业"), ("XLRE", "房地产")]
+# 热点赛道（主题 ETF，只看日线）
+THEMES = [("SOXX", "半导体"), ("DRAM", "存储"), ("LYTE", "光通信"), ("NCLD", "数据中心"), ("NLR", "核能"),
+          ("ICLN", "清洁能源"), ("BUG", "网络安全"), ("WQTM", "量子"), ("JEDI", "无人机"), ("REMX", "稀土"), ("UFO", "航天")]
 N_CHART = 220   # 每张图保存的 K 线根数
 
 def bbi(c):
@@ -76,11 +79,14 @@ if __name__ == "__main__":
         except Exception as e:
             print("失败:", tk, e)
 
-    # 板块：日线 BBI + 52 周位置
-    out["sectors"] = []
-    for tk, name in SECTORS:
+    # 行业板块 + 热点赛道：日线 BBI + 52 周位置
+    out["sectors"], out["themes"] = [], []
+    for group, lst, suffix in (("sectors", SECTORS, "板块 ETF"), ("themes", THEMES, " ETF")):
+      for tk, name in lst:
         try:
             h = ohlc(tk, "1y", "1d")
+            if len(h) < 30:                                   # 数据太少（新上市或代码无效）就跳过
+                print("数据不足:", tk, len(h)); continue
             r = summarize(h["Close"])
             y = h.tail(252)                                   # 最近 52 周
             hi, lo, c = float(y["High"].max()), float(y["Low"].min()), float(y["Close"].iloc[-1])
@@ -89,8 +95,9 @@ if __name__ == "__main__":
                    "from_hi": round((c / hi - 1) * 100, 2), "from_lo": round((c / lo - 1) * 100, 2),
                    "nh": bool(y["High"].iloc[-1] >= y["High"].iloc[:-1].max()),   # 今天创 52 周新高
                    "nl": bool(y["Low"].iloc[-1] <= y["Low"].iloc[:-1].min())}     # 今天创 52 周新低
-            out["sectors"].append({"ticker": tk, "name": name, **r, **w52, "new": r["bull"] and r["bars"] == 1})
-            save_chart(tk, {"t": tk, "name": name + "板块 ETF", **pack(h)})
+            w52["young"] = len(h) < 240                       # 上市不足一年：52 周位置按上市以来计算
+            out[group].append({"ticker": tk, "name": name, **r, **w52, "new": r["bull"] and r["bars"] == 1})
+            save_chart(tk, {"t": tk, "name": name + suffix, **pack(h)})
         except Exception as e:
             print("失败:", tk, e)
 

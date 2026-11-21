@@ -24,6 +24,8 @@
   .side .cap{font-size:12px;color:#999;margin:6px 10px}
   .side button{display:block;width:100%;text-align:left;background:none;border:0;color:#333;font-size:15px;padding:10px 12px;border-radius:6px;cursor:pointer}
   .side button.on{background:#e8eefc;color:#2962ff;font-weight:600}
+  .side .grp{font-size:15px;color:#333;padding:10px 12px 4px}
+  .side button.sub{font-size:14px;padding:7px 12px 7px 26px}
   .center{display:flex;flex-direction:column;min-height:0;overflow:auto;padding:4px 8px}
   .view{display:none;flex:1;flex-direction:column;min-height:0}
   .view.on{display:flex}
@@ -89,6 +91,7 @@
   .sechead>:nth-child(7),.secrow>:nth-child(7){padding-left:20px}
   .sechead>:nth-child(5),.secrow>:nth-child(5){padding-left:16px}
   .secrow:hover{background:#f8faff}
+  .dist sup{color:#999;margin-left:1px}
   .secrow .code{font-weight:700} .secrow .nm{color:#444}
   .secrow .st{font-size:13px;white-space:nowrap}
   .secrow .val{width:auto}
@@ -121,7 +124,9 @@
   <div class="side" id="side">
     <div class="cap">数据中心</div>
     <button data-view="home">今日大盘</button>
-    <button data-view="sector">板块追踪</button>
+    <div class="grp">板块追踪</div>
+    <button data-view="sector" class="sub">行业板块</button>
+    <button data-view="theme" class="sub">热点赛道</button>
     <button data-view="screen">智能选股</button>
     <button data-view="cal">财经日历</button>
     <div class="cap">我的频道</div>
@@ -142,11 +147,18 @@
       <h2 class="hh" style="margin-bottom:2px"><small id="scUpd" style="margin-left:0;color:#111"></small></h2>
       <div id="scBody"><p class="note">加载中…</p></div>
     </div>
+    <div class="view" id="v-theme">
+      <h2 class="hh"><small id="themeUpd" style="margin-left:0;color:#111"></small></h2>
+      <div id="themeList"><p class="note">加载中…</p></div>
+      <p class="note" style="line-height:1.9">排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
+        52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位；* 上市不足一年，按上市以来计算<br>
+        免责声明：仅为个人观点，不构成投资建议</p>
+    </div>
     <div class="view" id="v-sector">
       <h2 class="hh"><small id="secUpd" style="margin-left:0;color:#111"></small></h2>
       <div id="secList"><p class="note">加载中…</p></div>
       <p class="note" style="line-height:1.9">排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
-        52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位<br>
+        52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位；* 上市不足一年，按上市以来计算<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
     <div class="view" id="v-bbi">
@@ -281,25 +293,31 @@ function loadBBI(){
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
 }
 
-/* 板块 BBI（日线） */
-function loadSector(){
+/* 板块追踪：行业板块 + 热点赛道（日线 BBI） */
+function secBlock(list){
+  if (!list || !list.length) return "";
+  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span></div>`;
+  return head + [...list].sort((a, b) => b.pct - a.pct).map(s => {
+    const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
+    const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
+    const yg = s.young ? "（上市不足一年，按上市以来计算）" : "";
+    return `<div class="secrow" onclick="openChart('${s.ticker}')">
+      <span class="code">${s.ticker}</span><span class="nm">${s.name}</span>
+      <div class="bar"><div class="mid"></div><div class="fillb" style="${s.pct >= 0 ? "right" : "left"}:50%;width:${w}%;background:${col}"></div></div>
+      <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px;text-align:right">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
+      <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span>
+      <span class="px">${s.close.toFixed(2)}</span>
+      <div class="rng" title="52 周最高 ${s.hi52} · 最低 ${s.lo52}${yg}">高<div class="trk52"><div class="dot" style="left:${((1 - s.pos) * 100).toFixed(1)}%"></div></div>低</div>
+      <span class="dist">${dist}${s.young ? '<sup title="上市不足一年，按上市以来计算">*</sup>' : ""} ${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span></div>`;
+  }).join("");
+}
+function loadSector(kind){   // kind = "sectors"（行业板块）或 "themes"（热点赛道）
+  const [upd, box] = kind === "themes" ? ["themeUpd", "themeList"] : ["secUpd", "secList"];
   fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
-    if (!d.sectors || !d.sectors.length) throw 0;
-      $("secUpd").textContent = d.updated;
-    const head = `<div class="sechead"><span>代码</span><span>板块</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span></div>`;
-    $("secList").innerHTML = head + [...d.sectors].sort((a, b) => b.pct - a.pct).map(s => {
-      const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
-      const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
-      return `<div class="secrow" onclick="openChart('${s.ticker}')">
-        <span class="code">${s.ticker}</span><span class="nm">${s.name}</span>
-        <div class="bar"><div class="mid"></div><div class="fillb" style="${s.pct >= 0 ? "right" : "left"}:50%;width:${w}%;background:${col}"></div></div>
-        <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px;text-align:right">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
-        <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span>
-        <span class="px">${s.close.toFixed(2)}</span>
-        <div class="rng" title="52 周最高 ${s.hi52} · 最低 ${s.lo52}">高<div class="trk52"><div class="dot" style="left:${((1 - s.pos) * 100).toFixed(1)}%"></div></div>低</div>
-        <span class="dist">${dist} ${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span></div>`;
-    }).join("");
-  }).catch(() => { $("secList").innerHTML = '<p class="note">还没有板块数据：请到 Actions → Update BBI → Run workflow 运行一次。</p>'; });
+    if (!d[kind] || !d[kind].length) throw 0;
+    $(upd).textContent = d.updated;
+    $(box).innerHTML = secBlock(d[kind]);
+  }).catch(() => { $(box).innerHTML = '<p class="note">还没有数据：请到 Actions → Update BBI → Run workflow 运行一次。</p>'; });
 }
 
 /* BBI 选股 */
@@ -405,7 +423,8 @@ function showView(v){
   if (v === "stock") drawChart();
   if (v === "home" && !loaded.home) loadBBI();
   if (v === "screen" && !loaded.screen) loadScreen();
-  if (v === "sector") loadSector();
+  if (v === "sector") loadSector("sectors");
+  if (v === "theme") loadSector("themes");
   if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"light", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
   if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"light", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
   if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
