@@ -83,9 +83,9 @@
   .bclegend{font-size:12px;color:#888;margin:6px 4px}
   .sechead,.secrow{display:grid;grid-template-columns:56px 76px minmax(180px,1fr) 74px 118px 200px 110px 64px;align-items:center;column-gap:14px;padding:0 10px}
   .sechead{font-size:12px;color:#999;padding-bottom:8px;border-bottom:1px solid #e5e7eb}
-  .secrow{height:50px;border-bottom:1px solid #f0f1f3;cursor:pointer}
+  .secrow{height:44px;border-bottom:1px solid #f0f1f3;cursor:pointer}
   .secrow .bar{height:12px}
-     .sechead>:nth-child(7),.secrow>:nth-child(7){padding-left:22px}
+  .sechead>:nth-child(7),.secrow>:nth-child(7){padding-left:22px}
   .secrow:hover{background:#f8faff}
   .secrow .code{font-weight:700} .secrow .nm{color:#444}
   .secrow .st{font-size:13px;white-space:nowrap}
@@ -96,6 +96,10 @@
   .rng .dot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#2962ff;border:2px solid #fff;box-shadow:0 0 0 1px #2962ff}
   .dist{font-size:12px;color:#555;white-space:nowrap}
   .nh{color:#c9a000;font-weight:700;font-size:12px} .nl{color:#8e44ad;font-weight:700;font-size:12px}
+  .clickable,#vix svg{cursor:pointer}
+  .clickable:hover{border-color:#b9c7f5}
+  .tfbtn{border:1px solid #d1d5db;background:#f3f4f6;color:#333;padding:2px 10px;border-radius:4px;cursor:pointer;font-size:13px}
+  .tfbtn.on{background:#2962ff;border-color:#2962ff;color:#fff}
   #mark{display:none}
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
@@ -140,9 +144,9 @@
       <p class="note">按 BBI 偏离度从强到弱排序。左绿偏多、右红偏空，条带范围 ±5%。★新 = 今天由空翻多。52 周位置：左高右低，圆点越靠左越接近一年高点（与 BBI 条"左强右弱"一致），鼠标停留可看最高/最低价；🔺新高 / 🔻新低 = 今天创 52 周新高 / 新低。点任意一行查看 K 线 + BBI + MACD。仅为个人观点，不构成投资建议。</p>
     </div>
     <div class="view" id="v-bbi">
-      <div class="bchead"><b id="bcT"></b><span id="bcInfo"></span><a id="bcTV">在我的 TradingView 中打开 →</a></div>
+      <div class="bchead"><b id="bcT"></b><span id="bcTF"></span><span id="bcInfo"></span><a id="bcTV">在我的 TradingView 中打开 →</a></div>
       <div id="bc"></div>
-      <div class="bclegend">BBI：<span style="color:#089981">━ 偏多</span> <span style="color:#f23645">━ 偏空</span>　<span style="color:#2962ff">━ DIF</span>　<span style="color:#e91e63">━ DEA</span>　MACD(12,26,9)</div>
+      <div class="bclegend"><span id="bcLegBBI">BBI：<span style="color:#089981">━ 偏多</span> <span style="color:#f23645">━ 偏空</span>　</span><span style="color:#2962ff">━ DIF</span>　<span style="color:#e91e63">━ DEA</span>　MACD(12,26,9)</div>
     </div>
     <div class="view" id="v-stock">
       <div id="chart"></div>
@@ -267,8 +271,8 @@ function vixGauge(x){
 function loadBBI(){
   fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
     $("upd").textContent = "更新于 " + d.updated;
-    if (d.vix) $("vix").innerHTML = vixGauge(d.vix);
-    $("bbiCards").innerHTML = d.items.map(it => `<div class="box"><h3>${it.name}</h3>
+    if (d.vix){ $("vix").innerHTML = vixGauge(d.vix); $("vix").onclick = () => openChart("VIX"); }
+    $("bbiCards").innerHTML = d.items.map(it => `<div class="box clickable" onclick="openChart('${it.key || ""}')" title="点击查看图表"><h3>${it.name}</h3>
       ${bbiRow("日线", it.d1, "天")}${bbiRow("4H", it.h4, "根")}</div>`).join("");
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
 }
@@ -337,8 +341,16 @@ const smaA = (a, n) => a.map((_, i) => i < n - 1 ? null : a.slice(i - n + 1, i +
 function emaA(a, n){ const k = 2 / (n + 1); let e = a[0]; return a.map((x, i) => (e = i ? x * k + e * (1 - k) : x)); }
 let lwChart = null;
 function openChart(t){
+  if (!t) return;
   fetch(`charts/${t}.json?t=` + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); })
-    .then(d => { showView("bbi"); drawBBI(d); }).catch(() => setSymbol(t));
+    .then(d => { showView("bbi"); showFrame(d, d.frames ? Object.keys(d.frames)[0] : null); })
+    .catch(() => setSymbol(t));
+}
+function showFrame(d, tf){   // 有多个周期（ES/NQ：日线 / 4H）时显示切换按钮
+  $("bcTF").innerHTML = d.frames ? Object.keys(d.frames).map(k =>
+    `<button class="tfbtn${k === tf ? " on" : ""}">${k}</button>`).join(" ") : "";
+  $("bcTF").querySelectorAll("button").forEach(b => b.onclick = () => showFrame(d, b.textContent));
+  drawBBI(d.frames ? {...d, ...d.frames[tf], intraday: tf !== "日线"} : d);
 }
 function drawBBI(d){
   const L = LightweightCharts, n = d.c.length;
@@ -346,14 +358,14 @@ function drawBBI(d){
   lwChart = L.createChart($("bc"), {autoSize:true,
     layout:{background:{color:"#ffffff"}, textColor:"#333", panes:{separatorColor:"#e5e7eb"}},
     grid:{vertLines:{color:"#f3f4f6"}, horzLines:{color:"#f3f4f6"}},
-    rightPriceScale:{borderColor:"#e5e7eb"}, timeScale:{borderColor:"#e5e7eb"}});
+    rightPriceScale:{borderColor:"#e5e7eb"}, timeScale:{borderColor:"#e5e7eb", timeVisible: !!d.intraday}});
   const T = d.d;
   lwChart.addSeries(L.CandlestickSeries, {upColor:"#089981", downColor:"#f23645", borderVisible:false, wickUpColor:"#089981", wickDownColor:"#f23645"})
     .setData(T.map((t, i) => ({time:t, open:d.o[i], high:d.h[i], low:d.l[i], close:d.c[i]})));
   const m3 = smaA(d.c,3), m6 = smaA(d.c,6), m12 = smaA(d.c,12), m24 = smaA(d.c,24);
   const bbi = d.c.map((_, i) => m24[i] == null ? null : (m3[i] + m6[i] + m12[i] + m24[i]) / 4);
-  // BBI 线按多空着色：收盘价 > BBI 为绿，< BBI 为红
-  lwChart.addSeries(L.LineSeries, {color:"#089981", lineWidth:2, priceLineVisible:false, crosshairMarkerVisible:false})
+  // BBI 线按多空着色：收盘价 > BBI 为绿，< BBI 为红（VIX 不画）
+  if (!d.nobbi) lwChart.addSeries(L.LineSeries, {color:"#089981", lineWidth:2, priceLineVisible:false, crosshairMarkerVisible:false})
     .setData(T.map((t, i) => bbi[i] == null ? {time:t} : {time:t, value:bbi[i], color: d.c[i] > bbi[i] ? "#089981" : "#f23645"}));
   // MACD(12,26,9)：DIF = EMA12 − EMA26，DEA = EMA9(DIF)，柱 = 2 × (DIF − DEA)
   const e12 = emaA(d.c,12), e26 = emaA(d.c,26), dif = e12.map((x, i) => x - e26[i]), dea = emaA(dif, 9);
@@ -365,9 +377,13 @@ function drawBBI(d){
   lwChart.panes()[1].setHeight(170);
   lwChart.timeScale().setVisibleLogicalRange({from: n - 130, to: n + 2});
   const c = d.c[n-1], b = bbi[n-1], up = c > b;
+  const when = typeof T[n-1] === "number" ? new Date(T[n-1] * 1000).toISOString().slice(0, 16).replace("T", " ") + " 美东" : T[n-1];
   $("bcT").textContent = d.t;
-  $("bcInfo").innerHTML = `${d.name}　收盘 ${c}　BBI ${b.toFixed(2)}　<b class="${up ? "bull" : "bear"}" style="font-size:14px">${up ? "偏多" : "偏空"} ${((c / b - 1) * 100).toFixed(2)}%</b>　（${T[n-1]}）`;
-  $("bcTV").onclick = () => setSymbol(d.t);
+  $("bcLegBBI").style.display = d.nobbi ? "none" : "";
+  $("bcInfo").innerHTML = d.nobbi ? `${d.name}　收盘 ${c}　（${when}）`
+    : `${d.name}　收盘 ${c}　BBI ${b.toFixed(2)}　<b class="${up ? "bull" : "bear"}" style="font-size:14px">${up ? "偏多" : "偏空"} ${((c / b - 1) * 100).toFixed(2)}%</b>　（${when}）`;
+  const TVMAP = {ES:"CME_MINI:ES1!", NQ:"CME_MINI:NQ1!", VIX:"TVC:VIX"};   // 期货和 VIX 在 TradingView 上的代码
+  $("bcTV").onclick = () => setSymbol(TVMAP[d.t] || d.t);
 }
 
 /* 左侧菜单 */
