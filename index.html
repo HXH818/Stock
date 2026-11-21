@@ -70,8 +70,8 @@
   .newlist{margin:0 4px 14px}
   .newlist .tag{font-size:14px}
   table.sc{border-collapse:collapse;width:100%;font-size:13px}
-  table.sc th{position:sticky;top:0;background:#f6f7f9;cursor:pointer;user-select:none;text-align:right;padding:7px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap}
-  table.sc td{text-align:right;padding:6px 8px;border-bottom:1px solid #f0f1f3;white-space:nowrap}
+  table.sc th{position:sticky;top:0;background:#f6f7f9;cursor:pointer;user-select:none;text-align:center;padding:7px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+  table.sc td{text-align:center;padding:6px 8px;border-bottom:1px solid #f0f1f3;white-space:nowrap}
   table.sc th:nth-child(-n+3),table.sc td:nth-child(-n+3){text-align:left}
   table.sc tr:hover td{background:#f8faff}
   table.sc td a{color:#2962ff;cursor:pointer;font-weight:600}
@@ -139,7 +139,7 @@
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
     <div class="view" id="v-screen">
-      <h2 class="hh">优质公司 · 日线 BBI <small id="scUpd"></small></h2>
+      <h2 class="hh"><small id="scUpd" style="margin-left:0;color:#111"></small></h2>
       <div id="scBody"><p class="note">加载中…</p></div>
     </div>
     <div class="view" id="v-sector">
@@ -327,10 +327,11 @@ function renderScreen(){
     return (x > y ? 1 : x < y ? -1 : 0) * dir;
   });
   const fresh = d.rows.filter(r => r.new), up = d.rows.filter(r => r.bull).length;
+  const upPct = d.rows.length ? (up / d.rows.length * 100).toFixed(1) : "0.0";
   $("scBody").innerHTML = `
-    <div class="breadth">标普 500 站上日线 BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b>（${d.breadth.above} / ${d.breadth.total}）
-      　·　优质公司 ${d.rows.length} 家，站上 BBI <b class="bull">${up}</b> 家</div>
-    <div class="newlist">今日新站上 BBI：${fresh.length ? fresh.map(r => `<button class="tag" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
+    <div class="breadth">标普 500 站上BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b> (${d.breadth.above}/${d.breadth.total})
+      &nbsp;&nbsp;|&nbsp;&nbsp; 优质公司站上BBI：<b class="${upPct >= 50 ? "bull" : "bear"}">${upPct}%</b> (${up}/${d.rows.length})</div>
+    <div class="newlist">今日新站上BBI：${fresh.length ? fresh.map(r => `<button class="tag" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
     <p class="note">基本面标准（排除金融板块）：营收增长 &gt; 5%，营业利润率 &gt; 15%，自由现金流/营收 &gt; 10%，净负债/EBITDA &lt; 2。基本面数据更新于 ${d.fund_date}，来源雅虎财经，仅供初筛参考。仅为个人观点，不构成投资建议。</p>`;
@@ -338,7 +339,7 @@ function renderScreen(){
 function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }
 function loadScreen(){
   fetch("screen.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
-    scData = d; $("scUpd").textContent = `收盘日 ${d.asof} · 更新于 ${d.updated}`; renderScreen();
+    scData = d; $("scUpd").textContent = d.updated; renderScreen();
   }).catch(() => { $("scBody").innerHTML = '<p class="note">还没有选股数据：请到 Actions → Update BBI → Run workflow，勾选“立即运行选股”后运行一次。</p>'; });
 }
 
