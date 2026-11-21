@@ -39,7 +39,7 @@
   .chip{background:#f1f3f6;border-radius:4px;display:flex;align-items:center}
   .chip button{background:none;border:0;color:#222;cursor:pointer;padding:5px 4px 5px 9px;font-size:13px}
   .chip .x{color:#999;padding:5px 8px 5px 2px}
-  #quotes,#hot{flex:1;min-height:400px}
+  #quotes{flex:1;min-height:400px}
   .add{background:#f3f4f6;border:1px solid #d1d5db;color:#333;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:8px}
   .video{border-bottom:1px solid #e5e7eb;padding:14px 6px}
   .video h4{margin:0 0 6px;font-size:17px} .video .date{color:#888;font-size:13px}
@@ -168,14 +168,12 @@
   <div class="right">
     <div class="tabs">
       <button data-pane="watch" class="on">我的关注</button>
-      <button data-pane="hot">热门股</button>
     </div>
     <div class="pane on" id="p-watch">
       <button class="add" onclick="addSym(cur)">＋ 关注当前股票</button>
       <div class="chips" id="chips"></div>
       <div id="quotes"></div>
     </div>
-    <div class="pane" id="p-hot"><div id="hot"></div></div>
   </div>
 </div>
 <div id="mark"></div>
@@ -416,7 +414,7 @@ function showView(v){
 }
 $("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
 
-/* 右侧：我的关注 / 热门股 */
+/* 右侧：我的关注 */
 let watch; try { watch = JSON.parse(localStorage.getItem("watchlist")) || DEFAULT; } catch(e){ watch = DEFAULT; }
 const save = () => { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch(e){} };
 function renderWatch(){
@@ -428,13 +426,10 @@ function renderWatch(){
 function addSym(s){ if (!watch.some(w => short(w) === short(s))) { watch.push(s); save(); renderWatch(); } }
 function removeSym(s){ watch = watch.filter(x => x !== s); save(); renderWatch(); }
 
-let hotLoaded = false;
 document.querySelector(".tabs").onclick = e => {
   const p = e.target.dataset.pane; if (!p) return;
   document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.pane === p));
   document.querySelectorAll(".pane").forEach(el => el.classList.toggle("on", el.id === "p-" + p));
-  if (p === "hot" && !hotLoaded){ hotLoaded = true;
-    widget("hot", "hotlists", {colorTheme:"light", dateRange:"1D", exchange:"US", showChart:true, locale:"zh_CN", isTransparent:true, showSymbolLogo:true, width:"100%", height:"100%"}); }
 };
 
 /* 视频笔记 */
