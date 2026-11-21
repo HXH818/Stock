@@ -308,7 +308,7 @@ function loadSector(){
 const SEC = {"Information Technology":"信息技术","Health Care":"医疗","Consumer Discretionary":"可选消费","Consumer Staples":"必需消费",
   "Industrials":"工业","Communication Services":"通信服务","Energy":"能源","Materials":"原材料","Utilities":"公用事业","Real Estate":"房地产","Financials":"金融"};
 const SC_COLS = [
-  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘"],["pct","BBI 偏离"],["days","持续(天)"],
+  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘价"],["pct","BBI偏离"],["days","持续(天)"],
   ["rev_growth","营收增长"],["op_margin","营业利润率"],["fcf_margin","FCF/营收"],["nd_ebitda","净负债/EBITDA"]];
 let scData = null, scSort = ["pct", -1];
 const pctf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
@@ -335,7 +335,7 @@ function renderScreen(){
     <div class="newlist">今日跌破BBI：${broke.length ? broke.map(r => `<button class="tag bear" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
-    <p class="note" style="line-height:1.9">基本面标准：营收增长 &gt; 5%，营业利润率 &gt; 15%，自由现金流/营收 &gt; 10%，净负债/EBITDA &lt; 2<br>
+    <p class="note" style="line-height:1.9">基本面标准：营收增长 &gt;5%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
       免责声明：仅为个人观点，不构成投资建议</p>`;
 }
 function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }
