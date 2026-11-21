@@ -66,7 +66,7 @@
   .vixbox svg{width:340px;height:auto}
   .hh small{font-size:12px;color:#888;font-weight:400;margin-left:8px}
   .breadth{font-size:13px;margin:2px 4px 8px}
-  .breadth b{font-size:16px}
+  .breadth b{font-size:15px}
   .newlist{font-size:13px;margin:0 4px 6px}
   .newlist .tag{font-size:12px;margin:0 4px 0 0;padding:2px 7px}
   table.sc{border-collapse:collapse;width:100%;font-size:13px}
@@ -335,7 +335,8 @@ function renderScreen(){
     <div class="newlist">今日跌破BBI：${broke.length ? broke.map(r => `<button class="tag bear" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
-    <p class="note">基本面标准（排除金融板块）：营收增长 &gt; 5%，营业利润率 &gt; 15%，自由现金流/营收 &gt; 10%，净负债/EBITDA &lt; 2。基本面数据更新于 ${d.fund_date}，来源雅虎财经，仅供初筛参考。仅为个人观点，不构成投资建议。</p>`;
+    <p class="note" style="line-height:1.9">基本面标准：营收增长 &gt; 5%，营业利润率 &gt; 15%，自由现金流/营收 &gt; 10%，净负债/EBITDA &lt; 2<br>
+      免责声明：仅为个人观点，不构成投资建议</p>`;
 }
 function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }
 function loadScreen(){
