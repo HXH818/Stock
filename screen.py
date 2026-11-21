@@ -107,7 +107,13 @@ def main():
         f = fund["data"].get(t)
         if not f or t not in tech or not passes(f):
             continue
-        rows.append({**m, **tech[t], **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in f.items()}})
+        hi_s, lo_s = px["High"][t].dropna().tail(252), px["Low"][t].dropna().tail(252)   # 最近 52 周
+        c = tech[t]["close"]
+        w52 = {"hi52": round(float(hi_s.max()), 2), "lo52": round(float(lo_s.min()), 2),
+               "from_hi": round((c / float(hi_s.max()) - 1) * 100, 2),
+               "nh": bool(hi_s.iloc[-1] >= hi_s.iloc[:-1].max()),    # 今天创 52 周新高
+               "nl": bool(lo_s.iloc[-1] <= lo_s.iloc[:-1].min())}    # 今天创 52 周新低
+        rows.append({**m, **tech[t], **w52, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in f.items()}})
 
     # 为清单里的每只股票保存 K 线数据（网页画 BBI + MACD 图用）
     os.makedirs("charts", exist_ok=True)

@@ -308,7 +308,7 @@ function loadSector(){
 const SEC = {"Information Technology":"信息技术","Health Care":"医疗","Consumer Discretionary":"可选消费","Consumer Staples":"必需消费",
   "Industrials":"工业","Communication Services":"通信服务","Energy":"能源","Materials":"原材料","Utilities":"公用事业","Real Estate":"房地产","Financials":"金融"};
 const SC_COLS = [
-  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘价"],["pct","BBI偏离"],["days","持续(天)"],
+  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘价"],["pct","BBI偏离"],["days","持续(天)"],["from_hi","距52周高点"],
   ["rev_growth","营收增长"],["op_margin","营业利润率"],["fcf_margin","FCF/营收"],["nd_ebitda","净负债/EBITDA"]];
 let scData = null, scSort = ["pct", -1];
 const pctf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
@@ -318,6 +318,7 @@ function scCell(r, k){
   if (k === "pct") return `<span class="${r.bull ? "bull" : "bear"}">${r.bull ? "▲" : "▼"} ${r.pct > 0 ? "+" : ""}${r.pct}%</span>`;
   if (["rev_growth","op_margin","fcf_margin"].includes(k)) return pctf(r[k]);
   if (k === "nd_ebitda") return r.net_cash ? "净现金" : (r[k] == null ? "—" : r[k].toFixed(2));
+  if (k === "from_hi") return r[k] == null ? "—" : `${r[k]}%${r.nh ? ' <span class="nh">🔺新高</span>' : r.nl ? ' <span class="nl">🔻新低</span>' : ""}`;
   return r[k];
 }
 function renderScreen(){
@@ -326,13 +327,15 @@ function renderScreen(){
     const x = k === "nd_ebitda" && a.net_cash ? -99 : a[k], y = k === "nd_ebitda" && b.net_cash ? -99 : b[k];
     return (x > y ? 1 : x < y ? -1 : 0) * dir;
   });
-  const fresh = d.rows.filter(r => r.new), broke = d.rows.filter(r => !r.bull && r.days === 1), up = d.rows.filter(r => r.bull).length;
+  const fresh = d.rows.filter(r => r.new), broke = d.rows.filter(r => !r.bull && r.days === 1), hi = d.rows.filter(r => r.nh), lo = d.rows.filter(r => r.nl), up = d.rows.filter(r => r.bull).length;
   const upPct = d.rows.length ? (up / d.rows.length * 100).toFixed(1) : "0.0";
   $("scBody").innerHTML = `
     <div class="breadth">标普500站上BBI：<b class="${d.breadth.pct >= 50 ? "bull" : "bear"}">${d.breadth.pct}%</b> (${d.breadth.above}/${d.breadth.total})
       &nbsp;&nbsp;|&nbsp;&nbsp; 优质公司站上BBI：<b class="${upPct >= 50 ? "bull" : "bear"}">${upPct}%</b> (${up}/${d.rows.length})</div>
     <div class="newlist">今日站上BBI：${fresh.length ? fresh.map(r => `<button class="tag bull" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <div class="newlist">今日跌破BBI：${broke.length ? broke.map(r => `<button class="tag bear" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
+    <div class="newlist">52周新高：${hi.length ? hi.map(r => `<button class="tag" style="color:#c9a000" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}
+      &nbsp;&nbsp;|&nbsp;&nbsp; 52周新低：${lo.length ? lo.map(r => `<button class="tag" style="color:#8e44ad" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
     <p class="note" style="line-height:1.9">基本面标准：营收增长 &gt;5%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
