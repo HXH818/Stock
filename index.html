@@ -286,7 +286,7 @@ function loadSector(){
   fetch("data.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
     if (!d.sectors || !d.sectors.length) throw 0;
       $("secUpd").textContent = d.updated;
-    const head = `<div class="sechead"><span>代码</span><span>板块</span><span style="text-align:center">BBI 偏离（日线）</span><span style="text-align:right">偏离</span><span>状态</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span><span></span></div>`;
+    const head = `<div class="sechead"><span>代码</span><span>板块</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span><span></span></div>`;
     $("secList").innerHTML = head + [...d.sectors].sort((a, b) => b.pct - a.pct).map(s => {
       const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
       const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
