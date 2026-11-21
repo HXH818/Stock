@@ -335,7 +335,8 @@ function renderScreen(){
     <div class="newlist">今日站上BBI：${fresh.length ? fresh.map(r => `<button class="tag bull" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <div class="newlist">今日跌破BBI：${broke.length ? broke.map(r => `<button class="tag bear" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <div class="newlist">52周新高：${hi.length ? hi.map(r => `<button class="tag" style="color:#c9a000" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}
-      &nbsp;&nbsp;|&nbsp;&nbsp; 52周新低：${lo.length ? lo.map(r => `<button class="tag" style="color:#8e44ad" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
+      </div>
+    <div class="newlist">52周新低：${lo.length ? lo.map(r => `<button class="tag" style="color:#8e44ad" onclick="openChart('${r.ticker}')">${r.ticker}</button>`).join("") : '<span class="note">无</span>'}</div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
     <p class="note" style="line-height:1.9">基本面标准：营收增长 &gt;5%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
