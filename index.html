@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>美股频道</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -118,9 +117,9 @@
   <!-- 左侧菜单 -->
   <div class="side" id="side">
     <div class="cap">数据中心</div>
-    <button data-view="home">大盘多空</button>
-    <button data-view="screen">BBI 选股</button>
-    <button data-view="sector">板块</button>
+    <button data-view="home">今日大盘</button>
+    <button data-view="screen">智能选股</button>
+    <button data-view="sector">板块追踪</button>
     <button data-view="cal">财经日历</button>
     <div class="cap">我的频道</div>
     <button data-view="videos">视频笔记</button>
@@ -129,7 +128,7 @@
   <!-- 中间 -->
   <div class="center">
     <div class="view" id="v-home">
-      <h2 class="hh">大盘多空 · BBI <small id="upd"></small></h2>
+      <h2 class="hh">大盘行情 <small id="upd"></small></h2>
       <div class="vixbox" id="vix"></div>
       <div class="duo" id="bbiCards"></div>
       <p class="note">规则：价格在 BBI 之上为偏多，之下为偏空。BBI = (MA3 + MA6 + MA12 + MA24) / 4。条带范围 ±5%，超出时顶格显示。仅为个人观点，不构成投资建议。</p>
