@@ -295,6 +295,7 @@ function loadSector(){
         <div class="bar"><div class="mid"></div><div class="fillb" style="${s.pct >= 0 ? "right" : "left"}:50%;width:${w}%;background:${col}"></div></div>
         <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px;text-align:right">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
         <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span>
+        <span class="px">${s.close.toFixed(2)}</span>
         <div class="rng" title="52 周最高 ${s.hi52} · 最低 ${s.lo52}">高<div class="trk52"><div class="dot" style="left:${((1 - s.pos) * 100).toFixed(1)}%"></div></div>低</div>
         <span class="dist">${dist}</span>
         <span>${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span></div>`;
