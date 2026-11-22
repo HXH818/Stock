@@ -68,6 +68,27 @@ def bbi_table(close):
                   "bull": above[-1], "days": days, "new": above[-1] and days == 1}
     return out
 
+def ha_signal(k, look=3):
+    """日线买卖信号（最近 look 个交易日内最近的一次）：
+       买入 = HA 绿 且 收盘 > BBI，两者首次同日成立；卖出 = HA 红 且 收盘 < BBI，两者首次同日成立。
+       返回 (信号, 几天前)，例如 ("buy", 0) 表示今天出现买入信号；没有信号返回 ("", None)"""
+    o, h, l, c = (k[x].to_numpy() for x in ("Open", "High", "Low", "Close"))
+    if len(c) < 26: return "", None
+    hc = (o + h + l + c) / 4                      # HA 收 = (开+高+低+收)/4
+    ho = hc.copy(); ho[0] = (o[0] + c[0]) / 2
+    for i in range(1, len(c)):                    # HA 开 = (前 HA 开 + 前 HA 收)/2
+        ho[i] = (ho[i - 1] + hc[i - 1]) / 2
+    green = hc > ho
+    cs = k["Close"]
+    b = ((cs.rolling(3).mean() + cs.rolling(6).mean() + cs.rolling(12).mean() + cs.rolling(24).mean()) / 4).to_numpy()
+    up, dn = green & (c > b), ~green & (c < b)
+    n = len(c)
+    for age in range(look):
+        i = n - 1 - age
+        if up[i] and not up[i - 1]: return "buy", age
+        if dn[i] and not dn[i - 1]: return "sell", age
+    return "", None
+
 def main():
     now = pd.Timestamp.now(tz=TZ)
     today = now.strftime("%Y-%m-%d")
@@ -113,6 +134,8 @@ def main():
                "from_hi": round((c / float(hi_s.max()) - 1) * 100, 2),
                "nh": bool(hi_s.iloc[-1] >= hi_s.iloc[:-1].max()),    # 今天创 52 周新高
                "nl": bool(lo_s.iloc[-1] <= lo_s.iloc[:-1].min())}    # 今天创 52 周新低
+        k = pd.DataFrame({"Open": px["Open"][t], "High": px["High"][t], "Low": px["Low"][t], "Close": close[t]}).dropna()
+        w52["sig"], w52["sig_age"] = ha_signal(k)
         rows.append({**m, **tech[t], **w52, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in f.items()}})
 
     # 为清单里的每只股票保存 K 线数据（网页画 BBI + MACD 图用）

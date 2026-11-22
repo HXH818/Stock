@@ -83,16 +83,20 @@
   .bchead a{margin-left:auto;color:#2962ff;cursor:pointer;font-size:13px}
   #bc{flex:1;min-height:620px}
   .bclegend{font-size:12px;color:#888;margin:6px 4px}
-  .sechead,.secrow{display:grid;grid-template-columns:56px 76px minmax(120px,1.3fr) 70px 104px 70px minmax(150px,1fr) 140px;align-items:center;column-gap:12px;padding:0 10px}
+  .sechead,.secrow{display:grid;grid-template-columns:56px 76px minmax(120px,1.3fr) 70px 104px 92px 70px minmax(150px,1fr) 140px;align-items:center;column-gap:12px;padding:0 10px}
   .sechead{font-size:12px;color:#999;padding-bottom:8px;border-bottom:1px solid #e5e7eb}
   .secrow{height:44px;border-bottom:1px solid #f0f1f3;cursor:pointer}
   .secrow .bar{height:12px}
-  .sechead>:nth-child(8),.secrow>:nth-child(8){padding-left:18px}
+  .sechead>:nth-child(9),.secrow>:nth-child(9){padding-left:18px}
   .secrow .px{text-align:right;font-size:14px;color:#111}
-  .sechead>:nth-child(7),.secrow>:nth-child(7){padding-left:20px}
+  .sechead>:nth-child(8),.secrow>:nth-child(8){padding-left:20px}
   .sechead>:nth-child(5),.secrow>:nth-child(5){padding-left:16px}
   .secrow:hover{background:#f8faff}
   .dist sup{color:#999;margin-left:1px}
+  .sig{display:inline-block;font-size:12px;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid}
+  .sig.buy{color:#089981;border-color:#089981} .sig.sell{color:#f23645;border-color:#f23645}
+  .sig.today.buy{background:#089981;color:#fff} .sig.today.sell{background:#f23645;color:#fff}
+  .sigage{font-size:11px;color:#999;margin-left:4px}
   .secrow .code{font-weight:700} .secrow .nm{color:#444}
   .secrow .st{font-size:13px;white-space:nowrap}
   .secrow .val{width:auto}
@@ -151,14 +155,16 @@
     <div class="view" id="v-theme">
       <h2 class="hh"><small id="themeUpd" style="margin-left:0;color:#111"></small></h2>
       <div id="themeList"><p class="note">加载中…</p></div>
-      <p class="note" style="line-height:1.9">排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
+      <p class="note" style="line-height:1.9">信号：HA绿 + 站上BBI 首次同日成立 = 买入 ｜ HA红 + 跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
+        排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
         52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位；* 上市不足一年，按上市以来计算<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
     <div class="view" id="v-sector">
       <h2 class="hh"><small id="secUpd" style="margin-left:0;color:#111"></small></h2>
       <div id="secList"><p class="note">加载中…</p></div>
-      <p class="note" style="line-height:1.9">排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
+      <p class="note" style="line-height:1.9">信号：HA绿 + 站上BBI 首次同日成立 = 买入 ｜ HA红 + 跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
+        排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
         52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位；* 上市不足一年，按上市以来计算<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
@@ -294,10 +300,17 @@ function loadBBI(){
   }).catch(() => { $("bbiCards").innerHTML = '<p class="note">还没有数据：请到 GitHub 仓库的 Actions → Update BBI → Run workflow 手动运行一次。</p>'; });
 }
 
+/* 买卖信号（日线）：HA 绿 + 收盘 > BBI 首次同日成立 = 买入；HA 红 + 收盘 < BBI 首次同日成立 = 卖出；保留最近 3 天 */
+function sigTag(x){
+  if (!x || !x.sig) return "";
+  const age = x.sig_age || 0, when = age === 0 ? "今天" : `${age}天前`;
+  return `<span class="sig ${x.sig}${age === 0 ? " today" : ""}">${x.sig === "buy" ? "买入" : "卖出"}</span><span class="sigage">${when}</span>`;
+}
+
 /* 板块追踪：行业板块 + 热点赛道（日线 BBI） */
 function secBlock(list){
   if (!list || !list.length) return "";
-  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span></div>`;
+  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span>信号</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span></div>`;
   return head + [...list].sort((a, b) => b.pct - a.pct).map(s => {
     const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
     const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
@@ -307,6 +320,7 @@ function secBlock(list){
       <div class="bar"><div class="mid"></div><div class="fillb" style="${s.pct >= 0 ? "right" : "left"}:50%;width:${w}%;background:${col}"></div></div>
       <span class="val ${s.bull ? "bull" : "bear"}" style="font-size:15px;text-align:right">${s.pct > 0 ? "+" : ""}${s.pct}%</span>
       <span class="st ${s.bull ? "bull" : "bear"}">${s.bull ? "偏多" : "偏空"} ${s.bars} 天${s.new ? '<span class="star">★新</span>' : ""}</span>
+      <span>${sigTag(s)}</span>
       <span class="px">${s.close.toFixed(2)}</span>
       <div class="rng" title="52 周最高 ${s.hi52} · 最低 ${s.lo52}${yg}">高<div class="trk52"><div class="dot" style="left:${((1 - s.pos) * 100).toFixed(1)}%"></div></div>低</div>
       <span class="dist">${dist}${s.young ? '<sup title="上市不足一年，按上市以来计算">*</sup>' : ""} ${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span></div>`;
@@ -325,7 +339,7 @@ function loadSector(kind){   // kind = "sectors"（行业板块）或 "themes"�
 const SEC = {"Information Technology":"信息技术","Health Care":"医疗","Consumer Discretionary":"可选消费","Consumer Staples":"必需消费",
   "Industrials":"工业","Communication Services":"通信服务","Energy":"能源","Materials":"原材料","Utilities":"公用事业","Real Estate":"房地产","Financials":"金融"};
 const SC_COLS = [
-  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘价"],["pct","BBI偏离"],["days","持续(天)"],["from_hi","距52周高点"],
+  ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘价"],["pct","BBI偏离"],["days","持续(天)"],["sig","信号"],["from_hi","距52周高点"],
   ["rev_growth","营收增长"],["op_margin","营业利润率"],["fcf_margin","FCF/营收"],["nd_ebitda","净负债/EBITDA"]];
 let scData = null, scSort = ["pct", -1];
 const pctf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
@@ -335,6 +349,7 @@ function scCell(r, k){
   if (k === "pct") return `<span class="${r.bull ? "bull" : "bear"}">${r.bull ? "▲" : "▼"} ${r.pct > 0 ? "+" : ""}${r.pct}%</span>`;
   if (["rev_growth","op_margin","fcf_margin"].includes(k)) return pctf(r[k]);
   if (k === "nd_ebitda") return r.net_cash ? "净现金" : (r[k] == null ? "—" : r[k].toFixed(2));
+  if (k === "sig") return sigTag(r);
   if (k === "from_hi") return r[k] == null ? "—" : `${r[k]}%${r.nh ? ' <span class="nh">🔺新高</span>' : r.nl ? ' <span class="nl">🔻新低</span>' : ""}`;
   return r[k];
 }
@@ -358,7 +373,8 @@ function renderScreen(){
     </div>
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
-    <p class="note" style="line-height:1.9">基本面标准：营收增长 &gt;5%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
+    <p class="note" style="line-height:1.9">信号：HA绿 + 站上BBI 首次同日成立 = 买入 ｜ HA红 + 跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
+      基本面标准：营收增长 &gt;5%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
       免责声明：仅为个人观点，不构成投资建议</p>`;
 }
 function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }
