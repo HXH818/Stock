@@ -41,7 +41,15 @@
   .chip{background:#f1f3f6;border-radius:4px;display:flex;align-items:center}
   .chip button{background:none;border:0;color:#222;cursor:pointer;padding:5px 4px 5px 9px;font-size:13px}
   .chip .x{color:#999;padding:5px 8px 5px 2px}
-  #quotes{flex:1;min-height:400px}
+  .wadd{display:flex;gap:4px;margin-bottom:8px}
+  .wadd input{flex:1;min-width:0;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px}
+  .wadd button{border:1px solid #d1d5db;background:#f3f4f6;border-radius:4px;cursor:pointer;padding:0 10px}
+  .whead,.wrow{display:grid;grid-template-columns:1fr 72px 66px 16px;align-items:center;font-size:13px;padding:6px 4px}
+  .whead{color:#888;font-size:12px;border-bottom:1px solid #e5e7eb}
+  .whead span:nth-child(n+2),.wrow span:nth-child(2),.wrow span:nth-child(3){text-align:right}
+  .wrow{border-bottom:1px solid #f3f4f6;cursor:pointer} .wrow:hover{background:#f7f8fa}
+  .wrow b{font-weight:600} .wrow .x{color:#bbb;text-align:right;visibility:hidden} .wrow:hover .x{visibility:visible} .wrow .x:hover{color:#f23645}
+  .wmsg{color:#888;font-size:11px;margin-top:6px;line-height:1.6}
   .add{background:#f3f4f6;border:1px solid #d1d5db;color:#333;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:8px}
   .video{border-bottom:1px solid #e5e7eb;padding:14px 6px}
   .video h4{margin:0 0 6px;font-size:17px} .video .date{color:#888;font-size:13px}
@@ -252,9 +260,10 @@
       <button data-pane="watch" class="on">关注</button>
     </div>
     <div class="pane on" id="p-watch">
-      <button class="add" onclick="addSym(cur)">＋ 关注当前股票</button>
-      <div class="chips" id="chips"></div>
-      <div id="quotes"></div>
+      <div class="wadd"><input id="wIn" placeholder="输入代码，如 NVDA" onkeydown="if(event.key==='Enter')addSym(this.value)"><button onclick="addSym($('wIn').value)">＋</button></div>
+      <div class="whead"><span>代码</span><span>价格</span><span>涨跌%</span></div>
+      <div id="wList"></div>
+      <div id="wMsg" class="wmsg"></div>
     </div>
   </div>
 </div>
@@ -715,16 +724,39 @@ function showView(v){
 $("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
 
 /* 右侧：我的关注 */
+/* 只显示 代码 | 价格 | 涨跌%。数据来自网站自己的 charts/{代码}.json（日线，盘中每 30 分钟更新）；
+   价格 = 最新一根日线收盘（盘中为实时价），涨跌% = 价格 ÷ 昨收 − 1 */
 let watch; try { watch = JSON.parse(localStorage.getItem("watchlist")) || DEFAULT; } catch(e){ watch = DEFAULT; }
+watch = [...new Set(watch.map(s => short(s).toUpperCase()))];
 const save = () => { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch(e){} };
-function renderWatch(){
-  $("chips").innerHTML = watch.map(s =>
-    `<span class="chip"><button onclick="setSymbol('${s}')">${short(s)}</button><button class="x" onclick="removeSym('${s}')">✕</button></span>`).join("");
-  widget("quotes", "market-quotes", {width:"100%", height:"100%", showSymbolLogo:true, isTransparent:true, colorTheme:"light", locale:"zh_CN",
-    symbolsGroups:[{name:"我的关注", symbols:watch.map(s => ({name:s, displayName:short(s)}))}]});
+save();
+let wSynced = false;
+async function renderWatch(){
+  const rows = await Promise.all(watch.map(async t => {
+    try { const r = await fetch(`charts/${t}.json?t=` + Date.now()); if (!r.ok) throw 0;
+          let d = await r.json(); if (d.frames) d = d.frames["日线"]; const c = d.c, n = c.length;
+          return {t, px: c[n-1], pct: (c[n-1] / c[n-2] - 1) * 100}; }
+    catch(e){ return {t}; }
+  }));
+  $("wList").innerHTML = rows.map(x => `<div class="wrow" onclick="openChart('${x.t}')"><b>${x.t}</b>
+    ${x.px == null ? '<span style="color:#bbb">—</span><span style="color:#bbb">生成中</span>'
+      : `<span>${x.px.toFixed(2)}</span><span class="${x.pct >= 0 ? "bull" : "bear"}">${x.pct >= 0 ? "+" : ""}${x.pct.toFixed(2)}%</span>`}
+    <span class="x" title="移除" onclick="event.stopPropagation();removeSym('${x.t}')">✕</span></div>`).join("");
+  const missing = rows.filter(x => x.px == null).map(x => x.t);
+  if (missing.length && !wSynced) {   // 还没有数据的代码：自动加入 tracked.txt 并触发一次计算（和持仓用同一个令牌）
+    wSynced = true;
+    const res = await ghTrack(missing).catch(e => "err:" + e.message);
+    $("wMsg").textContent = res === "noToken" ? `${missing.join("、")} 还没有数据：请在 我的持仓 → ⚙ 设置 里填 GitHub 令牌`
+      : res.startsWith("err") ? `同步 ${missing.join("、")} 失败（${res.slice(4)}）` : `已提交 ${missing.join("、")}，约 1–2 分钟后自动显示`;
+    if (!res.startsWith("err") && res !== "noToken") setTimeout(() => { $("wMsg").textContent = ""; renderWatch(); }, 120000);
+  }
 }
-function addSym(s){ if (!watch.some(w => short(w) === short(s))) { watch.push(s); save(); renderWatch(); } }
-function removeSym(s){ watch = watch.filter(x => x !== s); save(); renderWatch(); }
+function addSym(s){
+  const t = (s || "").trim().toUpperCase().replace(/^.*:/, ""); $("wIn").value = "";
+  if (t && !watch.includes(t)) { watch.push(t); save(); wSynced = false; renderWatch(); }
+}
+function removeSym(t){ watch = watch.filter(x => x !== t); save(); renderWatch(); }
+setInterval(renderWatch, 5 * 60 * 1000);   // 每 5 分钟刷新一次
 
 document.querySelector(".tabs").onclick = e => {
   const p = e.target.dataset.pane; if (!p) return;
