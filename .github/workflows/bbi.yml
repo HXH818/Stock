@@ -38,4 +38,5 @@ jobs:
           git config user.email "github-actions@users.noreply.github.com"
           git add -A
           git commit -m "update BBI data" || echo "no change"
+          git pull --rebase origin main
           git push
