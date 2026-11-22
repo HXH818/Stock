@@ -117,6 +117,9 @@
   .hbox.on{display:flex}
   .hbox input{border:1px solid #d1d5db;border-radius:4px;padding:4px 6px;font-size:13px}
   .hmsg{font-size:12px;color:#888}
+  .rvsec{border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin:0 4px 10px;font-size:13px;line-height:1.9}
+  .rvsec h4{margin:0 0 2px;font-size:14px}
+  #rvNote{width:calc(100% - 8px);margin:0 4px;height:120px;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font:inherit;font-size:13px;resize:vertical;box-sizing:border-box}
   .hsub{font-size:14px;margin:18px 4px 6px}
   table.sc.hold td,table.sc.hold th{text-align:center} table.sc.hold td:first-child,table.sc.hold th:first-child{text-align:left}
   .stb{position:relative;width:140px;height:6px;background:linear-gradient(90deg,#fde2e4 0,#fde2e4 33.3%,#d9f2ec 33.3%,#d9f2ec 100%);border-radius:3px;margin:0 auto}
@@ -148,7 +151,8 @@
     <button data-view="screen">智能选股</button>
     <button data-view="cal">财经日历</button>
     <div class="cap">我的交易</div>
-    <button data-view="hold">持仓</button>
+    <button data-view="hold">我的持仓</button>
+    <button data-view="review">今日复盘</button>
     <div class="cap">我的频道</div>
     <button data-view="videos">视频笔记</button>
   </div>
@@ -214,6 +218,14 @@
       <div id="histList"></div>
       <p class="note" style="line-height:1.9">出场规则：亏损 5% 止损 ｜ 盈利 10% 止盈 ｜ 平均K线红 + 跌破BBI + MACD死叉 同时成立 = 信号清仓（均按日线收盘判断）<br>
         持仓明细只保存在本机浏览器，换电脑或清理浏览器数据前请先"导出备份"<br>
+        免责声明：仅为个人观点，不构成投资建议</p>
+    </div>
+    <div class="view" id="v-review">
+      <h2 class="hh" style="margin:0 4px 2px"><small id="rvUpd" style="margin-left:0;color:#111"></small></h2>
+      <div id="rvBody"><p class="note">加载中…</p></div>
+      <h3 class="hsub">复盘笔记</h3>
+      <textarea id="rvNote" placeholder="今天的操作、想法、明天要关注的……（自动保存在本机浏览器）" oninput="saveNote()"></textarea>
+      <p class="note" style="line-height:1.9">今日信号：平均K线变绿 + 股价站上BBI 首次同日成立 = 买入 ｜ 平均K线变红 + 股价跌破BBI 首次同日成立 = 卖出（范围：行业板块、热点赛道、智能选股）<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
     <div class="view" id="v-bbi">
@@ -523,13 +535,14 @@ function stopBar(p){
   const x = (Math.max(STOP, Math.min(TAKE, p)) - STOP) / (TAKE - STOP) * 100;
   return `<div class="stb" title="左端 ${STOP}% 止损 ｜ 右端 +${TAKE}% 止盈"><div class="z"></div><div class="dot" style="left:${x}%;background:${p >= 0 ? "#089981" : "#f23645"}"></div></div>`;
 }
+const holdRows = () => Promise.all(holds.map(async h => {
+  try { const r = await fetch(`charts/${h.t}.json?t=` + Date.now()); if (!r.ok) throw 0;
+        const d = await r.json(); return {h, a: analyze(h, d.frames ? d.frames["日线"] : d), name: d.name}; }
+  catch(e){ return {h, a: null}; }
+}));
 async function loadHold(){
   fetch("data.json?t=" + Date.now()).then(r => r.json()).then(d => $("holdUpd").textContent = d.updated).catch(() => {});
-  const rows = await Promise.all(holds.map(async h => {
-    try { const r = await fetch(`charts/${h.t}.json?t=` + Date.now()); if (!r.ok) throw 0;
-          const d = await r.json(); return {h, a: analyze(h, d.frames ? d.frames["日线"] : d), name: d.name}; }
-    catch(e){ return {h, a: null}; }
-  }));
+  const rows = await holdRows();
   const missing = [...new Set(rows.filter(x => !x.a).map(x => x.h.t))];
   if (missing.length && !syncTried) {
     syncTried = true;
@@ -552,6 +565,44 @@ async function loadHold(){
     </tbody></table>`;
   renderHist();
 }
+/* ===== 今日复盘：大盘 → 我的持仓 → 今日信号 → 今日清仓 → 笔记 ===== */
+const tagBtn = (t, cls, tip) => `<button class="tag ${cls}" title="${tip || ""}" onclick="openChart('${t}')">${t}</button>`;
+async function loadReview(){
+  const get = u => fetch(u + "?t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [d, sc, rows] = await Promise.all([get("data.json"), get("screen.json"), holdRows()]);
+  if (!d) { $("rvBody").innerHTML = '<p class="note">还没有数据。</p>'; return; }
+  $("rvUpd").textContent = d.updated;
+  const day = (rows.find(x => x.a) || {}).a?.date || todayNY();
+  // 1. 大盘（日线）
+  const mk = d.items.map(it => `${it.name}：<b class="${it.d1.bull ? "bull" : "bear"}">${it.d1.bull ? "偏多" : "偏空"} ${it.d1.pct > 0 ? "+" : ""}${it.d1.pct}%</b>（已持续 ${it.d1.bars} 天）`).join("　｜　");
+  const vz = d.vix ? (VZ.find(z => d.vix.value <= z[1]) || VZ[3]) : null;
+  const vx = d.vix ? `VIX：<b style="color:${vz[3]}">${d.vix.value}</b>（${d.vix.chg >= 0 ? "+" : ""}${d.vix.pct}%，${vz[2]}）` : "";
+  const br = sc && sc.breadth ? `　｜　标普500站上BBI：<b class="${sc.breadth.pct >= 50 ? "bull" : "bear"}">${sc.breadth.pct}%</b>` : "";
+  // 2. 我的持仓：今日盈亏 = (今收 − 昨收) × 股数；当天买入的按买入价算
+  const ok = rows.filter(x => x.a);
+  let dayPL = 0, prevMV = 0;
+  const hl = ok.map(({h, a}) => { const base = a.days === 0 ? h.price : a.prev, pl = (a.last - base) * h.shares; dayPL += pl; prevMV += base * h.shares;
+    return {h, a, pct: (a.last / base - 1) * 100, pl}; }).sort((x, y) => (x.a.act === "持有") - (y.a.act === "持有") || y.pct - x.pct);
+  const holdHtml = !holds.length ? '<span class="note" style="margin:0">还没有持仓</span>' :
+    `今日盈亏 <b class="${dayPL >= 0 ? "bull" : "bear"}">${money(dayPL)}（${prevMV ? sgn(dayPL / prevMV * 100) : "0.00"}%）</b><br>` +
+    hl.map(({h, a, pct}) => `${tagBtn(h.t, pct >= 0 ? "bull" : "bear")} 今日 <span class="${pct >= 0 ? "bull" : "bear"}">${sgn(pct)}%</span>　累计 <span class="${a.pnl >= 0 ? "bull" : "bear"}">${sgn(a.pnl)}%</span>　→ <b class="act ${a.cls}">${a.act}</b>`).join("<br>") +
+    (rows.length > ok.length ? `<br><span class="note" style="margin:0">${rows.filter(x => !x.a).map(x => x.h.t).join("、")} 数据生成中…</span>` : "");
+  // 3. 今日信号（sig_age = 0），去重
+  const pool = [...(d.sectors || []), ...(d.themes || []), ...(sc ? sc.rows : [])].filter(x => x.sig && x.sig_age === 0);
+  const uniq = k => [...new Map(pool.filter(x => x.sig === k).map(x => [x.ticker, x])).values()];
+  const sigLine = (k, cls) => { const l = uniq(k); return l.length ? l.map(x => tagBtn(x.ticker, cls, x.name)).join("") : '<span class="note" style="margin:0">无</span>'; };
+  // 4. 今日清仓
+  const out = hist.filter(x => x.sdate >= day);
+  const outHtml = out.length ? out.map(x => { const p = (x.sell / x.price - 1) * 100; return `<b>${x.t}</b>　<span class="${p >= 0 ? "bull" : "bear"}">${sgn(p)}%（${money((x.sell - x.price) * x.shares)}）</span>　${x.why}`; }).join("<br>") : '<span class="note" style="margin:0">无</span>';
+  $("rvBody").innerHTML = `
+    <div class="rvsec"><h4>大盘</h4>${mk}<br>${vx}${br}</div>
+    <div class="rvsec"><h4>我的持仓</h4>${holdHtml}</div>
+    <div class="rvsec"><h4>今日信号</h4>买入：${sigLine("buy", "bull")}<br>卖出：${sigLine("sell", "bear")}</div>
+    <div class="rvsec"><h4>今日清仓</h4>${outHtml}</div>`;
+  rvDay = day; $("rvNote").value = LS.get("notes", {})[day] || "";
+}
+let rvDay = null;
+function saveNote(){ if (!rvDay) return; const n = LS.get("notes", {}); n[rvDay] = $("rvNote").value; LS.set("notes", n); }
 function openHoldChart(i){
   const h = holds[i];
   chartLines = [{p:h.price, c:"#2962ff", t:"买入"}, {p:h.price * (1 + STOP / 100), c:"#f23645", t:"止损"}, {p:h.price * (1 + TAKE / 100), c:"#089981", t:"止盈"}];
@@ -608,7 +659,7 @@ function delHold(i){ if (confirm(`删除 ${holds[i].t} 这条持仓记录？（�
 function delHist(i){ if (confirm(`删除这条历史交易（${hist[i].t}）？`)) { hist.splice(i, 1); LS.set("history", hist); renderHist(); } }
 function saveTok(){ LS.set("gh_token", $("tokIn").value.trim()); $("tokIn").value = ""; $("tokMsg").textContent = "已保存在本机浏览器"; syncTried = false; loadHold(); }
 function exportHold(){
-  const blob = new Blob([JSON.stringify({holdings: holds, history: hist, exported: todayNY()}, null, 1)], {type: "application/json"});
+  const blob = new Blob([JSON.stringify({holdings: holds, history: hist, notes: LS.get("notes", {}), exported: todayNY()}, null, 1)], {type: "application/json"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `持仓备份-${todayNY()}.json`; a.click();
 }
 function importHold(inp){
@@ -616,7 +667,7 @@ function importHold(inp){
   f.text().then(s => { const j = JSON.parse(s);
     if (!Array.isArray(j.holdings)) throw 0;
     if (!confirm(`导入 ${j.holdings.length} 笔持仓、${(j.history || []).length} 笔历史交易，会覆盖本机现有记录，继续？`)) return;
-    holds = j.holdings; hist = j.history || []; LS.set("holdings", holds); LS.set("history", hist); loadHold();
+    holds = j.holdings; hist = j.history || []; LS.set("holdings", holds); LS.set("history", hist); if (j.notes) LS.set("notes", j.notes); loadHold();
   }).catch(() => alert("文件格式不对")); inp.value = "";
 }
 
@@ -630,7 +681,7 @@ function showView(v){
   if (v === "screen" && !loaded.screen) loadScreen();
   if (v === "sector") loadSector("sectors");
   if (v === "theme") loadSector("themes");
-  if (v === "hold") loadHold();
+  if (v === "hold") loadHold(); if (v === "review") loadReview();
   if (v === "fin") widget("fin", "financials", {symbol:cur, colorTheme:"light", displayMode:"regular", isTransparent:true, locale:"zh_CN", width:"100%", height:"100%"});
   if (v === "heat" && !loaded.heat) widget("heat", "stock-heatmap", {dataSource:"SPX500", blockSize:"market_cap_basic", blockColor:"change", grouping:"sector", locale:"zh_CN", colorTheme:"light", hasTopBar:true, isZoomEnabled:true, hasSymbolTooltip:true, width:"100%", height:"100%"});
   if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
