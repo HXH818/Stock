@@ -487,7 +487,7 @@ function drawBBI(d){
 const GH_REPO = "HXH818/Stock", STOP = -5, TAKE = 10;
 const LS = {get:(k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch(e){ return d; } },
             set:(k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }};
-let holds = LS.get("holdings", []), hist = LS.get("history", []);
+let holds = LS.get("holdings", []), hist = LS.get("history", []), syncTried = false;
 const todayNY = () => new Date().toLocaleDateString("en-CA", {timeZone:"America/New_York"});
 const money = v => (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString("en-US", {maximumFractionDigits:0});
 const sgn = v => (v > 0 ? "+" : "") + v.toFixed(2);
@@ -530,6 +530,14 @@ async function loadHold(){
           const d = await r.json(); return {h, a: analyze(h, d.frames ? d.frames["日线"] : d), name: d.name}; }
     catch(e){ return {h, a: null}; }
   }));
+  const missing = [...new Set(rows.filter(x => !x.a).map(x => x.h.t))];
+  if (missing.length && !syncTried) {
+    syncTried = true;
+    const res = await ghTrack(missing).catch(e => "err:" + e.message);
+    $("addMsg").textContent = res === "noToken" ? `${missing.join("、")} 还没有数据：请在 ⚙ 设置里填 GitHub 令牌` :
+      res.startsWith("err") ? `同步 ${missing.join("、")} 失败（${res.slice(4)}），请检查令牌权限` : `已提交 ${missing.join("、")}，正在生成数据，约 1–2 分钟后刷新本页`;
+    $("addBox").classList.add("on");
+  }
   let mv = 0, cost = 0, todo = 0;
   rows.forEach(({h, a}) => { if (a) { mv += a.last * h.shares; cost += h.price * h.shares; if (a.act !== "持有") todo++; } });
   $("holdSum").innerHTML = holds.length ? `持仓 ${holds.length} 只 ｜ 市值 ${money(mv)} ｜ 总盈亏 <b class="${mv >= cost ? "bull" : "bear"}">${money(mv - cost)} (${cost ? sgn((mv / cost - 1) * 100) : "0.00"}%)</b> ｜ 今日需处理：<b class="${todo ? "bear" : ""}">${todo}</b> 只` : "还没有持仓";
@@ -570,7 +578,8 @@ async function addHold(){
   $("addMsg").textContent = res === "noToken" ? `已添加 ${t}，但还没有它的数据：请在 ⚙ 设置里填 GitHub 令牌，或手动把 ${t} 加进仓库的 tracked.txt`
     : res.startsWith("err") ? `已添加 ${t}，但同步代码失败（${res.slice(4)}），请检查令牌权限` : `已添加 ${t}，正在生成数据，约 1–2 分钟后刷新本页`;
 }
-async function ghTrack(t){
+async function ghTrack(t){   // t 可以是一个代码，也可以是代码数组
+  const want = [].concat(t);
   const tok = LS.get("gh_token", ""); if (!tok) return "noToken";
   const H = {Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json"}, url = `https://api.github.com/repos/${GH_REPO}/contents/tracked.txt`;
   let sha = null, text = "";
@@ -578,9 +587,10 @@ async function ghTrack(t){
   if (g.ok) { const j = await g.json(); sha = j.sha; text = atob(j.content.replace(/\n/g, "")); }
   else if (g.status !== 404) throw new Error("读取 " + g.status);
   const set = new Set(text.split(/\s+/).map(x => x.trim().toUpperCase()).filter(x => x && !x.startsWith("#")));
-  if (!set.has(t)) {
-    set.add(t);
-    const p = await fetch(url, {method: "PUT", headers: H, body: JSON.stringify({message: `track ${t}`, content: btoa([...set].sort().join("\n") + "\n"), ...(sha ? {sha} : {})})});
+  const add = want.filter(x => !set.has(x));
+  if (add.length) {
+    add.forEach(x => set.add(x));
+    const p = await fetch(url, {method: "PUT", headers: H, body: JSON.stringify({message: `track ${add.join(" ")}`, content: btoa([...set].sort().join("\n") + "\n"), ...(sha ? {sha} : {})})});
     if (!p.ok) throw new Error("写入 " + p.status);
   }
   const w = await fetch(`https://api.github.com/repos/${GH_REPO}/actions/workflows/bbi.yml/dispatches`, {method: "POST", headers: H, body: JSON.stringify({ref: "main"})});
@@ -596,7 +606,7 @@ function sellHold(i, last, act){
 }
 function delHold(i){ if (confirm(`删除 ${holds[i].t} 这条持仓记录？（录错时用；正常卖出请用"清仓"）`)) { holds.splice(i, 1); LS.set("holdings", holds); loadHold(); } }
 function delHist(i){ if (confirm(`删除这条历史交易（${hist[i].t}）？`)) { hist.splice(i, 1); LS.set("history", hist); renderHist(); } }
-function saveTok(){ LS.set("gh_token", $("tokIn").value.trim()); $("tokIn").value = ""; $("tokMsg").textContent = "已保存在本机浏览器"; }
+function saveTok(){ LS.set("gh_token", $("tokIn").value.trim()); $("tokIn").value = ""; $("tokMsg").textContent = "已保存在本机浏览器"; syncTried = false; loadHold(); }
 function exportHold(){
   const blob = new Blob([JSON.stringify({holdings: holds, history: hist, exported: todayNY()}, null, 1)], {type: "application/json"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `持仓备份-${todayNY()}.json`; a.click();
