@@ -84,6 +84,14 @@ def pack(k, intraday=False):
          else [x.strftime("%Y-%m-%d") for x in k.index])
     return {"d": d, **{c.lower()[0]: [round(float(v), 2) for v in k[c]] for c in ["Open", "High", "Low", "Close"]}}
 
+def read_tracked():
+    """tracked.txt：持仓页需要跟踪的股票代码，一行一个（由网页"添加持仓"自动维护）"""
+    try:
+        with open("tracked.txt", encoding="utf-8") as f:
+            return [l.strip().upper() for l in f if l.strip() and not l.startswith("#")]
+    except FileNotFoundError:
+        return []
+
 def save_chart(key, obj):
     with open(f"charts/{key}.json", "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False)
@@ -124,6 +132,20 @@ if __name__ == "__main__":
             sig, age = ha_signal(h)
             out[group].append({"ticker": tk, "name": name, **r, **w52, "new": r["bull"] and r["bars"] == 1, "sig": sig, "sig_age": age})
             save_chart(tk, {"t": tk, "name": name + suffix, **pack(h)})
+        except Exception as e:
+            print("失败:", tk, e)
+
+    # 持仓跟踪：为 tracked.txt 里的代码保存日线 K 线（持仓页据此计算盈亏、BBI、MACD）
+    covered = {t for t, _ in SECTORS + THEMES}
+    for tk in read_tracked():
+        if tk in covered: continue                    # 板块/赛道已经保存过
+        try:
+            name = tk
+            try:
+                with open(f"charts/{tk}.json", encoding="utf-8") as f: name = json.load(f).get("name", tk)
+            except Exception: pass
+            h = ohlc(tk, "1y", "1d")
+            if len(h) >= 30: save_chart(tk, {"t": tk, "name": name, **pack(h)})
         except Exception as e:
             print("失败:", tk, e)
 

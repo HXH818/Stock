@@ -144,6 +144,11 @@ def main():
     # 为清单里的每只股票保存 K 线数据（网页画 BBI + MACD 图用）
     os.makedirs("charts", exist_ok=True)
     keep = {r["ticker"] for r in rows}
+    try:
+        with open("tracked.txt", encoding="utf-8") as f:
+            keep |= {l.strip().upper() for l in f if l.strip() and not l.startswith("#")}
+    except FileNotFoundError:
+        pass
     for t in {r["ticker"] for r in prev.get("rows", [])} - keep:   # 只删掉已经不在清单里的股票（板块 ETF 的图不动）
         try: os.remove(os.path.join("charts", f"{t}.json"))
         except FileNotFoundError: pass
