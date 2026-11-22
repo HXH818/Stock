@@ -704,6 +704,7 @@ function showView(v){
   if (v === "news" && !loaded.news) widget("news", "timeline", {feedMode:"market", market:"stock", colorTheme:"light", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"zh_CN"});
   if (v === "cal" && !loaded.cal) widget("cal", "events", {colorTheme:"light", isTransparent:true, width:"100%", height:"100%", locale:"zh_CN", importanceFilter:"0,1", countryFilter:"us"});
   loaded[v] = true;
+  if (document.querySelector(`#side button[data-view="${v}"]`)) try { sessionStorage.setItem("view", v); } catch(e){}   // 记住当前页面，F5 刷新后回到这里
 }
 $("side").onclick = e => { if (e.target.dataset.view) showView(e.target.dataset.view); };
 
@@ -752,7 +753,8 @@ document.addEventListener("fullscreenchange", () => { if (!document.fullscreenEl
 
 /* 启动 */
 renderWatch();
-showView("home");
+let startView = "home"; try { startView = sessionStorage.getItem("view") || "home"; } catch(e){}
+showView(startView);
 </script>
 </body>
 </html>
