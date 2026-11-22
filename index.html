@@ -438,7 +438,7 @@ function renderScreen(){
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
     <p class="note" style="line-height:1.9">买卖信号：平均K线变绿 + 股价站上BBI 首次同日成立 = 买入 ｜ 平均K线变红 + 股价跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
-      基本面标准：营收增长 &gt;5%（最近一季同比、最近一财年同比都要满足），营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
+      基本面标准：营收增长：最近一季同比 &gt;5% 且最近一财年同比 &gt;0%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
       免责声明：仅为个人观点，不构成投资建议</p>`;
 }
 function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }

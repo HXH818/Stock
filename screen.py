@@ -2,7 +2,7 @@
 #   美东 12:30 以后一次 = 盘中预览（今天的日线还没收盘，结果是临时的）
 #   美东 17:00 以后一次 = 收盘数据（正式）
 #   基本面（每 7 天刷新一次，缓存在 fundamentals.json）：
-#     营收增长 > 5%（最近一季同比 和 最近一个财年同比 都要 > 5%），营业利润率 > 15%，自由现金流/营收 > 10%，净负债/EBITDA < 2；排除金融板块
+#     营收增长：最近一季同比 > 5%，且最近一个财年同比 > 0%，营业利润率 > 15%，自由现金流/营收 > 10%，净负债/EBITDA < 2；排除金融板块
 #   技术面：日线 BBI = (MA3 + MA6 + MA12 + MA24) / 4，收盘价 > BBI 为站上
 import io, json, os, time
 import pandas as pd
@@ -10,7 +10,7 @@ import requests
 import yfinance as yf
 
 TZ = "America/New_York"
-RULES = {"rev_growth": 0.05, "op_margin": 0.15, "fcf_margin": 0.10, "nd_ebitda": 2.0}
+RULES = {"rev_growth": 0.05, "rev_year": 0.0, "op_margin": 0.15, "fcf_margin": 0.10, "nd_ebitda": 2.0}
 EXCLUDE_SECTORS = {"Financials"}
 FUND_DAYS = 7
 FUND_VER = 2          # 基本面口径版本：改了口径就提高版本号，下次运行会自动重新下载
@@ -57,7 +57,7 @@ def fundamentals(t):
             ry = float(r.iloc[0] / r.iloc[1] - 1)                    # ry：最近一个财年同比
     except Exception:
         pass
-    f = {"rev_growth": min(rq, ry) if rq is not None and ry is not None else None,   # 两个都要 > 5%，所以取较小的
+    f = {"rev_growth": rq,
          "rev_q": rq, "rev_y": ry, "op_margin": i.get("operatingMargins"),
          "fcf_margin": fcf / rev if fcf is not None and rev else None,
          "nd_ebitda": (debt - cash) / ebitda if ebitda and ebitda > 0 else None,
@@ -65,10 +65,10 @@ def fundamentals(t):
     return f
 
 def passes(f):
-    if any(f.get(k) is None for k in ("rev_growth", "op_margin", "fcf_margin")):
+    if any(f.get(k) is None for k in ("rev_q", "rev_y", "op_margin", "fcf_margin")):
         return False
     debt_ok = f["net_cash"] or (f["nd_ebitda"] is not None and f["nd_ebitda"] < RULES["nd_ebitda"])
-    return (f["rev_growth"] > RULES["rev_growth"] and f["op_margin"] > RULES["op_margin"]
+    return (f["rev_q"] > RULES["rev_growth"] and f["rev_y"] > RULES["rev_year"] and f["op_margin"] > RULES["op_margin"]
             and f["fcf_margin"] > RULES["fcf_margin"] and debt_ok)
 
 def bbi_table(close):
@@ -167,7 +167,7 @@ def main():
                "nl": bool(lo_s.iloc[-1] <= lo_s.iloc[:-1].min())}    # 今天创 52 周新低
         k = pd.DataFrame({"Open": px["Open"][t], "High": px["High"][t], "Low": px["Low"][t], "Close": close[t]}).dropna()
         w52["sig"], w52["sig_age"] = ha_signal(k)
-        rows.append({**m, **tech[t], **w52, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in f.items()}})
+        rows.append({**m, **tech[t], **w52, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in f.items()}, "rev_growth": f["rev_q"]})
 
     # 为清单里的每只股票保存 K 线数据（网页画 BBI + MACD 图用）
     os.makedirs("charts", exist_ok=True)
