@@ -39,23 +39,26 @@ def summarize(c):
 
 def ha_signal(k, look=3):
     """日线买卖信号（最近 look 个交易日内最近的一次）：
-       买入 = HA 绿 且 收盘 > BBI，两者首次同日成立；卖出 = HA 红 且 收盘 < BBI，两者首次同日成立。
+       买入 = 平均K线绿 且 收盘 > BBI，两者首次同日成立；卖出 = 平均K线红 且 收盘 < BBI，两者首次同日成立。
+       买卖必须交替出现：卖出之后，只有先出现买入，才会再出现卖出（反之亦然），
+       避免中间某一天条件短暂中断（比如平均K线闪一根绿）又重复发出同一个信号。
        返回 (信号, 几天前)，例如 ("buy", 0) 表示今天出现买入信号；没有信号返回 ("", None)"""
     o, h, l, c = (k[x].to_numpy() for x in ("Open", "High", "Low", "Close"))
     if len(c) < 26: return "", None
-    hc = (o + h + l + c) / 4                      # HA 收 = (开+高+低+收)/4
+    hc = (o + h + l + c) / 4                      # 平均K线 收 = (开+高+低+收)/4
     ho = hc.copy(); ho[0] = (o[0] + c[0]) / 2
-    for i in range(1, len(c)):                    # HA 开 = (前 HA 开 + 前 HA 收)/2
+    for i in range(1, len(c)):                    # 平均K线 开 = (前一根开 + 前一根收)/2
         ho[i] = (ho[i - 1] + hc[i - 1]) / 2
     green = hc > ho
     cs = k["Close"]
     b = ((cs.rolling(3).mean() + cs.rolling(6).mean() + cs.rolling(12).mean() + cs.rolling(24).mean()) / 4).to_numpy()
     up, dn = green & (c > b), ~green & (c < b)
-    n = len(c)
-    for age in range(look):
-        i = n - 1 - age
-        if up[i] and not up[i - 1]: return "buy", age
-        if dn[i] and not dn[i - 1]: return "sell", age
+    last, last_i = "", None                       # 上一个信号及其位置
+    for i in range(24, len(c)):
+        if up[i] and not up[i - 1] and last != "buy":   last, last_i = "buy", i
+        elif dn[i] and not dn[i - 1] and last != "sell": last, last_i = "sell", i
+    if last and len(c) - 1 - last_i < look:
+        return last, len(c) - 1 - last_i
     return "", None
 
 def ohlc(tk, period, interval):
