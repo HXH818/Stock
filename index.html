@@ -19,7 +19,7 @@
   .search input{background:none;border:0;color:#111;width:200px;outline:none;font-size:14px}
   .search button{background:none;border:0;color:#666;cursor:pointer;font-size:16px}
   .recbtn{background:#2962ff;border:0;color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer}
-  .main{flex:1;display:grid;grid-template-columns:150px 1fr 250px;min-height:0}
+  .main{flex:1;display:grid;grid-template-columns:150px 1fr 200px;min-height:0}
   .side{border-right:1px solid #e5e7eb;padding:12px 8px;overflow:auto}
   .side .cap{font-size:12px;color:#999;margin:6px 10px}
   .side button{display:block;width:100%;text-align:left;background:none;border:0;color:#333;font-size:15px;padding:10px 12px;border-radius:6px;cursor:pointer}
@@ -44,11 +44,10 @@
   .wadd{display:flex;gap:4px;margin-bottom:8px}
   .wadd input{flex:1;min-width:0;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px}
   .wadd button{border:1px solid #d1d5db;background:#f3f4f6;border-radius:4px;cursor:pointer;padding:0 10px}
-  .whead,.wrow{display:grid;grid-template-columns:1fr 72px 66px 16px;align-items:center;font-size:13px;padding:6px 4px}
+  .whead,.wrow{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;text-align:center;font-size:13px;padding:6px 0;position:relative}
   .whead{color:#888;font-size:12px;border-bottom:1px solid #e5e7eb}
-  .whead span:nth-child(n+2),.wrow span:nth-child(2),.wrow span:nth-child(3){text-align:right}
   .wrow{border-bottom:1px solid #f3f4f6;cursor:pointer} .wrow:hover{background:#f7f8fa}
-  .wrow b{font-weight:600} .wrow .x{color:#bbb;text-align:right;visibility:hidden} .wrow:hover .x{visibility:visible} .wrow .x:hover{color:#f23645}
+  .wrow b{font-weight:600} .wrow .x{position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:11px;color:#bbb;background:#f7f8fa;padding:2px 4px;visibility:hidden} .wrow:hover .x{visibility:visible} .wrow .x:hover{color:#f23645}
   .wmsg{color:#888;font-size:11px;margin-top:6px;line-height:1.6}
   .add{background:#f3f4f6;border:1px solid #d1d5db;color:#333;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:8px}
   .video{border-bottom:1px solid #e5e7eb;padding:14px 6px}
@@ -144,11 +143,6 @@
 </style>
 </head>
 <body>
-<div class="top">
-  <div class="brand"><span id="brand"></span><small id="slogan"></small></div>
-  <form class="search" id="searchForm"><input id="searchIn" placeholder="输入代码，如 TSLA"><button>🔍</button></form>
-  <button class="recbtn" onclick="startRec(watch)">🎬 录制</button>
-</div>
 
 <div class="main">
   <!-- 左侧菜单 -->
@@ -283,7 +277,6 @@ const VIDEOS = [
 /* ============================== */
 
 const $ = id => document.getElementById(id);
-$("brand").textContent = CHANNEL; $("slogan").textContent = SLOGAN;
 $("mark").textContent = CHANNEL; document.title = CHANNEL;
 
 function widget(id, name, cfg){
@@ -314,11 +307,10 @@ function openTV(sym){   // 在你自己的 TradingView（新窗口）中打开
   window.open(u, "_blank", "noopener");
 }
 function setSymbol(s){
-  cur = s.trim().toUpperCase(); $("searchIn").value = short(cur);
+  cur = s.trim().toUpperCase(); 
   if (document.body.classList.contains("rec")) showView("stock");   // 录制模式仍用页面内图表
   else openTV(cur);
 }
-$("searchForm").onsubmit = e => { e.preventDefault(); if ($("searchIn").value.trim()) setSymbol($("searchIn").value); };
 
 /* 首页：BBI 多空 */
 const RANGE = 5;   // 条带范围 ±5%
