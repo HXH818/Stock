@@ -96,6 +96,8 @@
   .sig{display:inline-block;font-size:12px;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid}
   .sig.buy{color:#089981;border-color:#089981} .sig.sell{color:#f23645;border-color:#f23645}
   .sig.today.buy{background:#089981;color:#fff} .sig.today.sell{background:#f23645;color:#fff}
+  .sig.prov{border-style:dashed;background:#fff!important} .sig.prov.buy{color:#089981} .sig.prov.sell{color:#f23645}
+  .runtag{font-size:11px;padding:1px 6px;border-radius:4px;margin-left:8px;font-weight:600}
   .sigage{font-size:11px;color:#999;margin-left:4px}
   .secrow .code{font-weight:700} .secrow .nm{color:#444}
   .secrow .st{font-size:13px;white-space:nowrap}
@@ -362,10 +364,10 @@ function loadBBI(){
 }
 
 /* 买卖信号（日线）：HA 绿 + 收盘 > BBI 首次同日成立 = 买入；HA 红 + 收盘 < BBI 首次同日成立 = 卖出；保留最近 3 天 */
-function sigTag(x){
+function sigTag(x, prov){   // prov = 盘中预览：今天的信号还没收盘确认，显示成虚线框
   if (!x || !x.sig) return "";
-  const age = x.sig_age || 0, when = age === 0 ? "今天" : `${age}天前`;
-  return `<span class="sig ${x.sig}${age === 0 ? " today" : ""}">${x.sig === "buy" ? "买入" : "卖出"}</span><span class="sigage">${when}</span>`;
+  const age = x.sig_age || 0, when = age === 0 ? "今天" : `${age}天前`, p = prov && age === 0;
+  return `<span class="sig ${x.sig}${age === 0 ? " today" : ""}${p ? " prov" : ""}"${p ? ' title="盘中预览，收盘后才确认"' : ""}>${x.sig === "buy" ? "买入" : "卖出"}</span><span class="sigage">${when}</span>`;
 }
 
 /* 板块追踪：行业板块 + 热点赛道（日线 BBI） */
@@ -401,16 +403,17 @@ const SEC = {"Information Technology":"信息技术","Health Care":"医疗","Con
   "Industrials":"工业","Communication Services":"通信服务","Energy":"能源","Materials":"原材料","Utilities":"公用事业","Real Estate":"房地产","Financials":"金融"};
 const SC_COLS = [
   ["ticker","代码"],["name","名称"],["sector","板块"],["close","收盘价"],["pct","BBI偏离"],["days","持续(天)"],["sig","信号"],["from_hi","距52周高点"],
-  ["rev_growth","营收增长"],["op_margin","营业利润率"],["fcf_margin","FCF/营收"],["nd_ebitda","净负债/EBITDA"]];
+  ["rev_growth","营收增长(季/年)"],["op_margin","营业利润率"],["fcf_margin","FCF/营收"],["nd_ebitda","净负债/EBITDA"]];
 let scData = null, scSort = ["pct", -1];
 const pctf = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
 function scCell(r, k){
   if (k === "ticker") return `<a onclick="openChart('${r.ticker}')">${r.ticker}</a>`;
   if (k === "sector") return SEC[r.sector] || r.sector;
   if (k === "pct") return `<span class="${r.bull ? "bull" : "bear"}">${r.bull ? "▲" : "▼"} ${r.pct > 0 ? "+" : ""}${r.pct}%</span>`;
-  if (["rev_growth","op_margin","fcf_margin"].includes(k)) return pctf(r[k]);
+  if (k === "rev_growth") return r.rev_q === undefined ? pctf(r[k]) : `${pctf(r.rev_q)} / ${pctf(r.rev_y)}`;
+  if (["op_margin","fcf_margin"].includes(k)) return pctf(r[k]);
   if (k === "nd_ebitda") return r.net_cash ? "净现金" : (r[k] == null ? "—" : r[k].toFixed(2));
-  if (k === "sig") return sigTag(r);
+  if (k === "sig") return sigTag(r, scData.final === false);
   if (k === "from_hi") return r[k] == null ? "—" : `${r[k]}%${r.nh ? ' <span class="nh">🔺新高</span>' : r.nl ? ' <span class="nl">🔻新低</span>' : ""}`;
   return r[k];
 }
@@ -435,13 +438,16 @@ function renderScreen(){
     <table class="sc"><thead><tr>${SC_COLS.map(([c, t]) => `<th onclick="scSortBy('${c}')">${t}${c === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r => `<tr>${SC_COLS.map(([c]) => `<td>${scCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
     <p class="note" style="line-height:1.9">买卖信号：平均K线变绿 + 股价站上BBI 首次同日成立 = 买入 ｜ 平均K线变红 + 股价跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
-      基本面标准：营收增长 &gt;5%，营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
+      基本面标准：营收增长 &gt;5%（最近一季同比、最近一财年同比都要满足），营业利润率 &gt;15%，自由现金流/营收 &gt;10%，净负债/EBITDA &lt;2<br>
       免责声明：仅为个人观点，不构成投资建议</p>`;
 }
 function scSortBy(k){ scSort = [k, scSort[0] === k ? -scSort[1] : -1]; renderScreen(); }
 function loadScreen(){
   fetch("screen.json?t=" + Date.now()).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
-    scData = d; $("scUpd").textContent = d.updated; renderScreen();
+    scData = d;
+    $("scUpd").innerHTML = d.updated + (d.final === false ? '<span class="runtag" style="color:#f7a600;border:1px solid #f7a600">盘中预览 · 未收盘</span>'
+      : '<span class="runtag" style="color:#888;border:1px solid #ccc">收盘数据</span>');
+    renderScreen();
   }).catch(() => { $("scBody").innerHTML = '<p class="note">还没有选股数据：请到 Actions → Update BBI → Run workflow，勾选“立即运行选股”后运行一次。</p>'; });
 }
 

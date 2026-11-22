@@ -1,6 +1,8 @@
-# 优质公司 + BBI 选股：每个交易日收盘后（美东 17:00 以后）运行一次，写入 screen.json
+# 优质公司 + BBI 选股，写入 screen.json。每个交易日运行两次：
+#   美东 12:30 以后一次 = 盘中预览（今天的日线还没收盘，结果是临时的）
+#   美东 17:00 以后一次 = 收盘数据（正式）
 #   基本面（每 7 天刷新一次，缓存在 fundamentals.json）：
-#     营收增长 > 5%，营业利润率 > 15%，自由现金流/营收 > 10%，净负债/EBITDA < 2；排除金融板块
+#     营收增长 > 5%（最近一季同比 和 最近一个财年同比 都要 > 5%），营业利润率 > 15%，自由现金流/营收 > 10%，净负债/EBITDA < 2；排除金融板块
 #   技术面：日线 BBI = (MA3 + MA6 + MA12 + MA24) / 4，收盘价 > BBI 为站上
 import io, json, os, time
 import pandas as pd
@@ -11,6 +13,7 @@ TZ = "America/New_York"
 RULES = {"rev_growth": 0.05, "op_margin": 0.15, "fcf_margin": 0.10, "nd_ebitda": 2.0}
 EXCLUDE_SECTORS = {"Financials"}
 FUND_DAYS = 7
+FUND_VER = 2          # 基本面口径版本：改了口径就提高版本号，下次运行会自动重新下载
 
 def load(path):
     try:
@@ -24,18 +27,38 @@ def save(path, obj):
         json.dump(obj, f, ensure_ascii=False)
 
 def sp500():
-    """从维基百科读取标普 500 成分股：代码、名称、板块"""
-    html = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-                        headers={"User-Agent": "Mozilla/5.0"}, timeout=30).text
-    t = pd.read_html(io.StringIO(html))[0]
-    return [{"ticker": str(r["Symbol"]).replace(".", "-"), "name": r["Security"], "sector": r["GICS Sector"]}
-            for _, r in t.iterrows()]
+    """从维基百科读取标普 500 成分股：代码、名称、板块。
+       读取成功就存一份到 sp500.json；读取失败或数量不对（不在 495–510 之间），改用上一次存的名单"""
+    try:
+        html = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+                            headers={"User-Agent": "Mozilla/5.0"}, timeout=30).text
+        t = pd.read_html(io.StringIO(html))[0]
+        members = [{"ticker": str(r["Symbol"]).replace(".", "-"), "name": r["Security"], "sector": r["GICS Sector"]}
+                   for _, r in t.iterrows()]
+        if not 495 <= len(members) <= 510:
+            raise ValueError(f"数量不对：{len(members)}")
+        save("sp500.json", members)
+        return members
+    except Exception as e:
+        old = load("sp500.json")
+        if not old:
+            raise
+        print("维基百科读取失败，改用上一次的名单:", e)
+        return old
 
 def fundamentals(t):
     i = yf.Ticker(t).info
     rev, fcf, ebitda = i.get("totalRevenue"), i.get("freeCashflow"), i.get("ebitda")
     debt, cash = i.get("totalDebt") or 0, i.get("totalCash") or 0
-    f = {"rev_growth": i.get("revenueGrowth"), "op_margin": i.get("operatingMargins"),
+    rq, ry = i.get("revenueGrowth"), None                        # rq：最近一季同比
+    try:
+        r = yf.Ticker(t).income_stmt.loc["Total Revenue"].dropna().sort_index(ascending=False)
+        if len(r) >= 2 and r.iloc[1] > 0:
+            ry = float(r.iloc[0] / r.iloc[1] - 1)                    # ry：最近一个财年同比
+    except Exception:
+        pass
+    f = {"rev_growth": min(rq, ry) if rq is not None and ry is not None else None,   # 两个都要 > 5%，所以取较小的
+         "rev_q": rq, "rev_y": ry, "op_margin": i.get("operatingMargins"),
          "fcf_margin": fcf / rev if fcf is not None and rev else None,
          "nd_ebitda": (debt - cash) / ebitda if ebitda and ebitda > 0 else None,
          "net_cash": debt - cash < 0}
@@ -97,9 +120,14 @@ def main():
     today = now.strftime("%Y-%m-%d")
     prev = load("screen.json") or {}
     force = os.environ.get("FORCE") == "true"
-    if not force and (now.weekday() >= 5 or now.hour < 17 or prev.get("run_date") == today):
-        print("选股：现在不需要运行（收盘后每天一次）")
-        return
+    hm = now.hour * 60 + now.minute
+    final = hm >= 17 * 60 or hm < 9 * 60 + 30 or now.weekday() >= 5   # 收盘后 / 开盘前 / 周末 = 收盘数据
+    ran = prev.get("run_date") == today
+    if not force:
+        if now.weekday() >= 5 or hm < 12 * 60 + 30:   # 周末、中午 12:30 以前不跑
+            print("选股：现在不需要运行"); return
+        if (final and ran and prev.get("final")) or (not final and ran):
+            print("选股：这一次已经运行过了"); return
 
     members = sp500()
     tickers = [m["ticker"] for m in members]
@@ -107,7 +135,7 @@ def main():
     # 基本面：缓存 7 天
     fund = load("fundamentals.json") or {}
     age = (now - pd.Timestamp(fund["date"]).tz_localize(TZ)).days if fund.get("date") else 999
-    if age >= FUND_DAYS or force and os.environ.get("REFRESH_FUND") == "true":
+    if age >= FUND_DAYS or fund.get("ver") != FUND_VER or force and os.environ.get("REFRESH_FUND") == "true":
         data = {}
         for m in members:
             if m["sector"] in EXCLUDE_SECTORS:
@@ -117,7 +145,7 @@ def main():
             except Exception as e:
                 print("基本面失败:", m["ticker"], e)
             time.sleep(0.3)
-        fund = {"date": today, "data": data}
+        fund = {"date": today, "ver": FUND_VER, "data": data}
         save("fundamentals.json", fund)
 
     # 日线：批量下载全部成分股
@@ -159,7 +187,7 @@ def main():
                                   **{c: [round(float(v), 2) for v in k[c]] for c in "ohlc"}})
 
     n_above = sum(1 for v in tech.values() if v["bull"])
-    out = {"run_date": today, "asof": close.index[-1].strftime("%Y-%m-%d"),
+    out = {"run_date": today, "final": final, "asof": close.index[-1].strftime("%Y-%m-%d"),
            "updated": now.strftime("%Y-%m-%d %H:%M") + " 美东", "fund_date": fund["date"],
            "breadth": {"above": n_above, "total": len(tech), "pct": round(n_above / max(len(tech), 1) * 100, 1)},
            "rules": RULES, "rows": rows}
