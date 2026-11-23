@@ -604,7 +604,34 @@ function bookTable(s, rows){   // 一个模块（做多 / 做空）的表格
       <td><button class="mini" onclick="sellHold('${s}', ${i}, ${a.last}, '${a.act}')">${L ? "清仓" : "平仓"}</button><button class="mini" style="color:#999" onclick="delHold('${s}', ${i})">删除</button></td></tr>`).join("")}
     </tbody></table>`;
 }
+/* 持仓同步到 GitHub 加密 Secret（HOLDINGS），供后台计算后发 Telegram 提醒。
+   用仓库公钥加密（libsodium sealed box），GitHub 只存密文，公开仓库里看不到持仓 */
+async function loadSodium(){
+  for (const u of ["https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.8.4/+esm", "https://esm.sh/libsodium-wrappers@0.8.4"]) {
+    try { const m = await import(u), so = m.default || m; await so.ready; return so; } catch(e){}
+  }
+  throw new Error("加密库加载失败");
+}
+let syncing = false;
+async function syncHoldings(){
+  const tok = LS.get("gh_token", ""); if (!tok || syncing) return;
+  const pick = l => l.map(h => ({t: h.t, date: h.date, price: h.price, shares: h.shares}));
+  const body = JSON.stringify({L: pick(holds), S: pick(shorts)});
+  if (LS.get("holdSynced", "") === body) return;          // 没有变化就不上传
+  syncing = true;
+  try {
+    const H = {Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json"}, base = `https://api.github.com/repos/${GH_REPO}/actions/secrets`;
+    const k = await fetch(`${base}/public-key`, {headers: H}); if (!k.ok) throw new Error("读取公钥 " + k.status);
+    const {key, key_id} = await k.json(), so = await loadSodium(), V = so.base64_variants.ORIGINAL;
+    const enc = so.to_base64(so.crypto_box_seal(so.from_string(body), so.from_base64(key, V)), V);
+    const p = await fetch(`${base}/HOLDINGS`, {method: "PUT", headers: H, body: JSON.stringify({encrypted_value: enc, key_id})});
+    if (!p.ok) throw new Error("写入 " + p.status);
+    LS.set("holdSynced", body); $("holdMsg").textContent = "持仓已同步到 Telegram 提醒";
+  } catch(e) { $("holdMsg").textContent = `持仓同步到 Telegram 提醒失败（${e.message}）${/ 403$/.test(e.message) ? "：令牌需要 Secrets 读写权限" : ""}`; }
+  syncing = false;
+}
 async function loadHold(){
+  syncHoldings();
   fetch("data.json?t=" + Date.now()).then(r => r.json()).then(d => $("holdUpd").textContent = d.updated).catch(() => {});
   const [rowsL, rowsS] = await Promise.all([holdRows("L"), holdRows("S")]);
   const missing = [...new Set([...rowsL, ...rowsS].filter(x => !x.a).map(x => x.h.t))];
@@ -726,7 +753,7 @@ function sellHold(s, i, last, act){
 }
 function delHold(s, i){ const list = book(s); if (confirm(`删除 ${list[i].t} 这条持仓记录？（录错时用；正常平仓请用"${s === "S" ? "平仓" : "清仓"}"）`)) { list.splice(i, 1); setBook(s, list); loadHold(); } }
 function delHist(i){ if (confirm(`删除这条历史交易（${hist[i].t}）？`)) { hist.splice(i, 1); LS.set("history", hist); renderHist(); } }
-function saveTok(){ LS.set("gh_token", $("tokIn").value.trim()); $("tokIn").value = ""; $("tokMsg").textContent = "已保存在本机浏览器"; syncTried = false; loadHold(); }
+function saveTok(){ LS.set("gh_token", $("tokIn").value.trim()); LS.set("holdSynced", ""); $("tokIn").value = ""; $("tokMsg").textContent = "已保存在本机浏览器"; syncTried = false; loadHold(); }
 function exportHold(){
   const blob = new Blob([JSON.stringify({holdings: holds, shorts, history: hist, notes: LS.get("notes", {}), exported: todayNY()}, null, 1)], {type: "application/json"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `持仓备份-${todayNY()}.json`; a.click();
