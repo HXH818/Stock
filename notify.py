@@ -81,7 +81,6 @@ def summary(pos):
         lines.append(f"{it['name']}：<b>{'偏多' if x['bull'] else '偏空'} {pct(x['pct'])}</b>（{x['bars']} 天）")
     v = d.get("vix")
     if v: lines.append(f"VIX：<b>{v['value']}</b>（{pct(v['pct'])}）")
-    if sc.get("breadth"): lines.append(f"标普500站上BBI：<b>{sc['breadth']['pct']}%</b>")
     pool = [x for x in d.get("sectors", []) + d.get("themes", []) + sc.get("rows", []) if x.get("sig") and x.get("sig_age") == 0]
     for k, nm in (("buy", "买入"), ("sell", "卖出")):
         ts = list(dict.fromkeys(x["ticker"] for x in pool if x["sig"] == k))

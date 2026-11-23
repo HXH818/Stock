@@ -665,7 +665,6 @@ async function loadReview(){
   const mk = d.items.map(it => `${it.name}：<b class="${it.d1.bull ? "bull" : "bear"}">${it.d1.bull ? "偏多" : "偏空"} ${it.d1.pct > 0 ? "+" : ""}${it.d1.pct}%</b>（已持续 ${it.d1.bars} 天）`).join("　｜　");
   const vz = d.vix ? (VZ.find(z => d.vix.value <= z[1]) || VZ[3]) : null;
   const vx = d.vix ? `VIX：<b style="color:${vz[3]}">${d.vix.value}</b>（${d.vix.chg >= 0 ? "+" : ""}${d.vix.pct}%，${vz[2]}）` : "";
-  const br = sc && sc.breadth ? `　｜　标普500站上BBI：<b class="${sc.breadth.pct >= 50 ? "bull" : "bear"}">${sc.breadth.pct}%</b>` : "";
   // 2. 我的持仓：今日盈亏 = (今收 − 昨收) × 股数（做空取反）；当天开仓的那几股按开仓价算
   let dayAll = 0;
   const part = (rs, s) => {
@@ -689,7 +688,7 @@ async function loadReview(){
   const out = hist.filter(x => x.sdate >= day);
   const outHtml = out.length ? out.map(x => { const r = histPL(x); return `${dirTag(x.side)}<b>${x.t}</b>　<span class="${r.pct >= 0 ? "bull" : "bear"}">${sgn(r.pct)}%（${money(r.pl)}）</span>　${x.why}`; }).join("<br>") : '<span class="note" style="margin:0">无</span>';
   $("rvBody").innerHTML = `
-    <div class="rvsec"><h4>大盘</h4>${mk}<br>${vx}${br}</div>
+    <div class="rvsec"><h4>大盘</h4>${mk}<br>${vx}</div>
     <div class="rvsec"><h4>我的持仓</h4>${holdHtml}</div>
     <div class="rvsec"><h4>今日信号</h4>买入：${sigLine("buy", "bull")}<br>卖出：${sigLine("sell", "bear")}</div>
     <div class="rvsec"><h4>今日平仓</h4>${outHtml}</div>`;
