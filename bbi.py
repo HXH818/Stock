@@ -9,8 +9,8 @@ TZ = "America/New_York"
 
 # (代码, 图表文件名, 显示名, 4H 切分起点) —— 与 TradingView 一致：期货 18:00 开盘起，每 4 小时一根
 SYMBOLS = [
-    ("ES=F", "ES", "标普 500（ES 期货）", (18, 0)),
-    ("NQ=F", "NQ", "纳指 100（NQ 期货）", (18, 0)),
+    ("ES=F", "ES", "标普500（ES 期货）", (18, 0)),
+    ("NQ=F", "NQ", "纳指100（NQ 期货）", (18, 0)),
 ]
 # 11 个板块 ETF（只看日线）
 SECTORS = [("XLK", "科技"), ("XLC", "通信"), ("XLY", "可选消费"), ("XLP", "必需消费"), ("XLV", "医疗"),
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         out["vix"] = {"value": round(float(c.iloc[-1]), 2),
                       "chg": round(float(c.iloc[-1] - c.iloc[-2]), 2),
                       "pct": round(float(c.iloc[-1] / c.iloc[-2] - 1) * 100, 2)}
-        save_chart("VIX", {"t": "VIX", "name": "VIX 恐慌指数", "nobbi": True, **pack(v)})
+        save_chart("VIX", {"t": "VIX", "name": "VIX恐慌指数", "nobbi": True, **pack(v)})
     except Exception as e:
         print("失败: ^VIX", e)
 

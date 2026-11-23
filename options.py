@@ -1,4 +1,4 @@
-# 指数期权仓位：标普 500 用 SPY 期权、纳指 100 用 QQQ 期权，写入 options.json，由 bbi.py 每次运行时调用
+# 指数期权仓位：标普500 用 SPY 期权、纳指100 用 QQQ 期权，写入 options.json，由 bbi.py 每次运行时调用
 #   看跌/看涨比 = 看跌合计 ÷ 看涨合计（成交量、未平仓量各算一个），范围：35 天内到期的合约
 #   支撑 = 现价下方 5% 以内 看跌未平仓量最大的行权价；阻力 = 现价上方 5% 以内 看涨未平仓量最大的行权价
 #   最大痛点 = 最近一个到期日，使期权买方到期总收益最小的结算价
@@ -9,8 +9,8 @@ import pandas as pd
 import yfinance as yf
 
 TZ = "America/New_York"
-GROUPS = [("SPY", "标普 500", [("SPY", "SPY")]),
-          ("QQQ", "纳指 100", [("QQQ", "QQQ")])]
+GROUPS = [("SPY", "标普500", [("SPY", "SPY")]),
+          ("QQQ", "纳指100", [("QQQ", "QQQ")])]
 BAND = 0.05           # 支撑 / 阻力只在现价 ±5% 以内找
 MAX_DAYS, MAX_EXP = 35, 8
 MIN_PREMIUM = {"SPY": 1e6, "QQQ": 1e6}

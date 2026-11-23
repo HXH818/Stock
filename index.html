@@ -377,7 +377,7 @@ function vixGauge(x){
   const ang = vixAngle(x.value), [nx,ny] = P(ang, r-30), [b1x,b1y] = P(ang+90,6), [b2x,b2y] = P(ang-90,6);
   const z = VZ.find(z => x.value <= z[1]) || VZ[3], up = x.chg >= 0;
   return `<svg viewBox="0 0 340 250">
-    <text x="${cx}" y="16" font-size="14" fill="#333" text-anchor="middle" font-weight="600">VIX 恐慌指数</text>
+    <text x="${cx}" y="16" font-size="14" fill="#333" text-anchor="middle" font-weight="600">VIX恐慌指数</text>
     ${arcs}${names}${ticks}
     <polygon points="${nx},${ny} ${b1x},${b1y} ${b2x},${b2y}" fill="#333"/>
     <circle cx="${cx}" cy="${cy}" r="9" fill="#333"/><circle cx="${cx}" cy="${cy}" r="3" fill="#fff"/>
