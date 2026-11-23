@@ -146,7 +146,7 @@
   body.rec .side,body.rec .right,body.rec .search,body.rec .recbtn{display:none}
   body.rec .main{grid-template-columns:1fr}
   body.rec #mark{display:block;position:fixed;right:28px;bottom:20px;opacity:.55;font-size:22px;font-weight:600}
-  @media(max-width:900px){.main{grid-template-columns:1fr}.side{display:flex;overflow-x:auto}.side .cap{display:none}.side button{white-space:nowrap;width:auto}.right{min-height:500px}}
+  @media(max-width:900px){.main{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}.side{display:flex;overflow-x:auto}.side .cap{display:none}.side button{white-space:nowrap;width:auto}.right{min-height:0;max-height:240px;overflow:auto;border-left:0;border-top:1px solid #e5e7eb}.right .tabs button{padding:6px}}
 </style>
 </head>
 <body>
