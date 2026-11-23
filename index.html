@@ -724,7 +724,13 @@ async function addHold(s){
   msg.textContent = res === "noToken" ? `已添加 ${t}，但还没有它的数据：请在 ⚙ 设置里填 GitHub 令牌，或手动把 ${t} 加进仓库的 tracked.txt`
     : res.startsWith("err") ? `已添加 ${t}，但同步代码失败（${res.slice(4)}），请检查令牌权限` : `已添加 ${t}，正在生成数据，约 1–2 分钟后刷新本页`;
 }
-async function ghTrack(t){   // t 可以是一个代码，也可以是代码数组
+/* 同时有多处要改 tracked.txt 时排队执行，避免两次写入撞车（GitHub 返回 409）；万一撞车自动重试一次 */
+let ghQueue = Promise.resolve();
+function ghTrack(t){
+  const run = () => ghTrack1(t).catch(e => /409/.test(e.message) ? ghTrack1(t) : Promise.reject(e));
+  const p = ghQueue.then(run, run); ghQueue = p.catch(() => {}); return p;
+}
+async function ghTrack1(t){   // t 可以是一个代码，也可以是代码数组
   const want = [].concat(t);
   const tok = LS.get("gh_token", ""); if (!tok) return "noToken";
   const H = {Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json"}, url = `https://api.github.com/repos/${GH_REPO}/contents/tracked.txt`;
