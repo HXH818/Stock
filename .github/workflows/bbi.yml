@@ -9,6 +9,10 @@ on:
         description: "立即运行选股（不等收盘）"
         type: boolean
         default: false
+      notify:
+        description: "立即发送一次 Telegram 总结（测试用）"
+        type: boolean
+        default: false
 
 concurrency:
   group: bbi-update
@@ -33,6 +37,14 @@ jobs:
         continue-on-error: true
         env:
           FORCE: ${{ inputs.force }}
+      - name: Telegram 提醒
+        run: python notify.py
+        continue-on-error: true
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          HOLDINGS: ${{ secrets.HOLDINGS }}
+          NOTIFY_NOW: ${{ inputs.notify }}
       - run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
