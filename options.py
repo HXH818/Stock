@@ -1,6 +1,6 @@
-# 指数期权仓位：标普 500（SPX + SPY）、纳指 100（NDX + QQQ），写入 options.json，由 bbi.py 每次运行时调用
+# 指数期权仓位：标普 500 用 SPY 期权、纳指 100 用 QQQ 期权，写入 options.json，由 bbi.py 每次运行时调用
 #   看跌/看涨比 = 看跌合计 ÷ 看涨合计（成交量、未平仓量各算一个），范围：35 天内到期的合约
-#   支撑 = 现价下方 看跌未平仓量最大的行权价；阻力 = 现价上方 看涨未平仓量最大的行权价
+#   支撑 = 现价下方 5% 以内 看跌未平仓量最大的行权价；阻力 = 现价上方 5% 以内 看涨未平仓量最大的行权价
 #   最大痛点 = 最近一个到期日，使期权买方到期总收益最小的结算价
 #   异常合约 = 今日成交量 ≥ 2 × 未平仓量，且权利金（成交量 × 最新价 × 100）达到门槛，按权利金排序
 # 注意：未平仓量每天只更新一次（反映前一交易日收盘），成交量是当天盘中累计；数据延迟约 15 分钟
@@ -9,10 +9,11 @@ import pandas as pd
 import yfinance as yf
 
 TZ = "America/New_York"
-GROUPS = [("SPX", "标普 500", [("^SPX", "SPX"), ("SPY", "SPY")]),
-          ("NDX", "纳指 100", [("^NDX", "NDX"), ("QQQ", "QQQ")])]
+GROUPS = [("SPY", "标普 500", [("SPY", "SPY")]),
+          ("QQQ", "纳指 100", [("QQQ", "QQQ")])]
+BAND = 0.05           # 支撑 / 阻力只在现价 ±5% 以内找
 MAX_DAYS, MAX_EXP = 35, 8
-MIN_PREMIUM = {"SPX": 5e6, "NDX": 2e6, "SPY": 1e6, "QQQ": 1e6}
+MIN_PREMIUM = {"SPY": 1e6, "QQQ": 1e6}
 N_UNUSUAL = 5
 
 def chains(sym):
@@ -46,7 +47,8 @@ def analyze(label, spot, exps, today):
     if allc.empty or allp.empty: return None
     cv, pv, co, po = allc["volume"].sum(), allp["volume"].sum(), allc["openInterest"].sum(), allp["openInterest"].sum()
     oi_c = allc.groupby("strike")["openInterest"].sum(); oi_p = allp.groupby("strike")["openInterest"].sum()
-    above, below = oi_c[oi_c.index > spot], oi_p[oi_p.index < spot]
+    above = oi_c[(oi_c.index > spot) & (oi_c.index <= spot * (1 + BAND))]
+    below = oi_p[(oi_p.index < spot) & (oi_p.index >= spot * (1 - BAND))]
     e0, c0, p0 = exps[0]
     zero = [x for x in exps if x[0] == today]
     unusual = []
@@ -82,7 +84,7 @@ def main():
             except Exception as e:
                 print("期权失败:", sym, e); continue
             if not r: continue
-            if g["main"] is None: g["main"] = {k: v for k, v in r.items() if k != "unusual"}   # 指数优先，取不到再用 ETF
+            if g["main"] is None: g["main"] = {k: v for k, v in r.items() if k != "unusual"}
             g["unusual"] += r["unusual"]
         g["unusual"] = sorted(g["unusual"], key=lambda x: -x["prem"])[:N_UNUSUAL]
         out["groups"].append(g)

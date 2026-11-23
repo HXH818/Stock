@@ -74,6 +74,8 @@
   .opt h3 small{font-size:12px;color:#888;font-weight:400;margin-left:6px}
   .og{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin:6px 6px 8px;font-size:13px}
   .og div{display:flex;justify-content:space-between;border-bottom:1px dashed #eee;padding:3px 0} .og span{color:#888}
+  .osum{margin:4px 6px 6px;font-size:14px;background:#f7f8fa;border-radius:6px;padding:6px 10px}
+  .og b small{font-weight:400;color:#888;margin-left:2px}
   .ou{font-size:12px;color:#888;margin:8px 6px 4px}
   table.ot{width:calc(100% - 12px);margin:0 6px;border-collapse:collapse;font-size:12px} table.ot td{padding:3px 4px;border-bottom:1px solid #f3f4f6;white-space:nowrap} table.ot td:nth-child(n+3){text-align:right}
   .note{color:#888;font-size:12px;margin:12px 4px}
@@ -182,7 +184,8 @@
       <div class="duo" id="optCards" style="margin-top:12px"></div>
             <p class="note" style="line-height:1.9">多空规则：价格 &gt; BBI 偏多 ｜ 价格 &lt; BBI 偏空<br>
         指标参数：BBI = (MA3 + MA6 + MA12 + MA24)/4（条带±5%，超出顶格）<br>
-        期权仓位：35 天内到期合约 ｜ 支撑 = 现价下方看跌未平仓量最大的行权价，阻力 = 现价上方看涨未平仓量最大的行权价 ｜ 最大痛点 = 最近到期日期权买方总收益最小的价格<br>
+        期权仓位：SPY / QQQ 期权，35 天内到期 ｜ 支撑 / 阻力 = 现价 ±5% 以内 看跌 / 看涨未平仓量最大的行权价 ｜ 最大痛点 = 最近到期日期权买方总收益最小的价格<br>
+        结论规则：成交看跌/看涨比 &lt;0.9 偏乐观、0.9–1.3 中性、&gt;1.3 偏谨慎 ｜ 持仓比 &lt;1.0 偏多、1.0–1.6 正常对冲、&gt;1.6 偏防守<br>
         异常合约：今日成交量 ≥ 2 倍未平仓量且金额较大；无法区分买入还是卖出 ｜ 未平仓量为前一交易日数据，成交量延迟约 15 分钟<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
@@ -399,15 +402,21 @@ const kpx = v => v == null ? "—" : (v % 1 ? v.toFixed(1) : v.toFixed(0));
 function optCard(g){
   const m = g.main;
   if (!m) return `<div class="box opt"><h3>${g.name} 期权仓位</h3><p class="note">暂时取不到期权数据</p></div>`;
-  const pc = v => v == null ? "—" : `<b class="${v > 1 ? "bear" : "bull"}">${v}</b>`;
-  const un = g.unusual.length ? `<table class="ot">${g.unusual.map(x => `<tr><td><b>${x.u}</b> ${x.exp.slice(5)}</td><td class="${x.type === "call" ? "bull" : "bear"}">${kpx(x.strike)} ${x.type === "call" ? "看涨" : "看跌"}</td>
+  const pc = (v, lo, hi) => v == null ? "—" : `<b class="${v < lo ? "bull" : v > hi ? "bear" : ""}">${v}</b>`;   // 颜色与下面的结论规则一致
+  const dist = v => v == null ? "" : `（${v > m.spot ? "+" : ""}${((v / m.spot - 1) * 100).toFixed(1)}%）`;
+  const s1 = m.pcr_vol == null ? "" : m.pcr_vol < 0.9 ? '<b class="bull">短线偏乐观</b>' : m.pcr_vol > 1.3 ? '<b class="bear">短线偏谨慎</b>' : "<b>短线中性</b>";
+  const s2 = m.pcr_oi == null ? "" : m.pcr_oi < 1 ? '<b class="bull">机构偏多</b>' : m.pcr_oi > 1.6 ? '<b class="bear">机构偏防守</b>' : "<b>机构正常对冲</b>";
+  const s3 = m.sup != null && m.res != null ? `在支撑 ${kpx(m.sup)} 与阻力 ${kpx(m.res)} 之间` : m.sup != null ? `下方支撑 ${kpx(m.sup)}` : m.res != null ? `上方阻力 ${kpx(m.res)}` : "";
+  const sum = [s1, s2, s3].filter(Boolean).join(" · ");
+  const un = g.unusual.length ? `<table class="ot">${g.unusual.map(x => `<tr><td>${x.exp.slice(5)} 到期</td><td class="${x.type === "call" ? "bull" : "bear"}">${kpx(x.strike)} ${x.type === "call" ? "看涨" : "看跌"}</td>
       <td>成交 ${kfmt(x.vol)} / 持仓 ${kfmt(x.oi)}</td><td><b>${mfmt(x.prem)}</b></td><td>${x.dist > 0 ? "+" : ""}${x.dist}%</td></tr>`).join("")}</table>`
     : '<p class="note" style="margin:2px 6px">今日暂无</p>';
   return `<div class="box opt"><h3>${g.name} 期权仓位<small>${m.u} · 现价 ${kpx(m.spot)}</small></h3>
+    <div class="osum">${sum}</div>
     <div class="og">
-      <div><span>看跌/看涨比（成交）</span>${pc(m.pcr_vol)}</div><div><span>看跌/看涨比（持仓）</span>${pc(m.pcr_oi)}</div>
-      <div><span>支撑（看跌持仓最大）</span><b class="bull">${kpx(m.sup)}</b></div><div><span>阻力（看涨持仓最大）</span><b class="bear">${kpx(m.res)}</b></div>
-      <div><span>最大痛点（${m.mp_exp.slice(5)} 到期）</span><b>${kpx(m.mp)}</b></div>
+      <div><span>看跌/看涨比（成交）</span>${pc(m.pcr_vol, 0.9, 1.3)}</div><div><span>看跌/看涨比（持仓）</span>${pc(m.pcr_oi, 1, 1.6)}</div>
+      <div><span>支撑（看跌持仓最大）</span><b class="bull">${kpx(m.sup)}<small>${dist(m.sup)}</small></b></div><div><span>阻力（看涨持仓最大）</span><b class="bear">${kpx(m.res)}<small>${dist(m.res)}</small></b></div>
+      <div><span>最大痛点（${m.mp_exp.slice(5)} 到期）</span><b>${kpx(m.mp)}<small>${dist(m.mp)}</small></b></div>
       <div><span>当天到期成交</span><b>${m.zero ? `涨 ${kfmt(m.zero.call)} · 跌 ${kfmt(m.zero.put)}` : "今日无到期"}</b></div>
     </div><div class="ou">异常合约（成交量 ≥ 2 倍未平仓量，按金额排序）</div>${un}</div>`;
 }
