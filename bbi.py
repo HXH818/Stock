@@ -162,4 +162,11 @@ if __name__ == "__main__":
 
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)
+
+    # 指数期权仓位（SPX/SPY、NDX/QQQ），写入 options.json；失败不影响上面的数据
+    try:
+        import options
+        options.main()
+    except Exception as e:
+        print("失败: 期权", e)
     print(json.dumps({k: out[k] for k in ("updated", "items")}, ensure_ascii=False, indent=1))
