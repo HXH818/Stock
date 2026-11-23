@@ -16,10 +16,27 @@ SYMBOLS = [
 SECTORS = [("XLK", "科技"), ("XLC", "通信"), ("XLY", "可选消费"), ("XLP", "必需消费"), ("XLV", "医疗"),
            ("XLF", "金融"), ("XLI", "工业"), ("XLE", "能源"), ("XLB", "原材料"), ("XLU", "公用事业"), ("XLRE", "房地产")]
 # 热点赛道（主题 ETF，只看日线）
-THEMES = [("SOXX", "半导体"), ("DRAM", "存储"), ("LYTE", "光通信"), ("NCLD", "数据中心"), ("NLR", "核能"),
-          ("ICLN", "清洁能源"), ("BUG", "网络安全"), ("WQTM", "量子"), ("JEDI", "无人机"), ("REMX", "稀土"), ("UFO", "航天"),
+THEMES = [("SOXX", "半导体"), ("DRAM", "存储"), ("LYTE", "光通信"), ("NCLD", "新云服务"), ("NLR", "核能"),
+          ("ICLN", "清洁能源"), ("BUG", "网络安全"), ("WQTM", "量子"), ("JEDI", "无人机"), ("REMX", "稀土"), ("UFO", "航天"), ("SHLD", "国防"),
           ("JETS", "航空"), ("MAGS", "七巨头"), ("GLD", "黄金"), ("IBIT", "比特币")]
 N_CHART = 220   # 每张图保存的 K 线根数
+
+def aum_map(tickers, today):
+    """ETF 资产规模（美元），每天只从雅虎读一次，缓存在 aum.json"""
+    try:
+        with open("aum.json", encoding="utf-8") as f: cache = json.load(f)
+    except Exception: cache = {}
+    if cache.get("date") != today: cache = {"date": today, "data": {}}
+    for tk in tickers:
+        if tk in cache["data"]: continue
+        try:
+            i = yf.Ticker(tk).info
+            v = i.get("totalAssets") or i.get("netAssets")
+            cache["data"][tk] = float(v) if v else None
+        except Exception as e:
+            print("规模失败:", tk, e)
+    with open("aum.json", "w", encoding="utf-8") as f: json.dump(cache, f)
+    return cache["data"]
 
 def bbi(c):
     return (c.rolling(3).mean() + c.rolling(6).mean()
@@ -114,6 +131,7 @@ if __name__ == "__main__":
 
     # 行业板块 + 热点赛道：日线 BBI + 52 周位置
     out["sectors"], out["themes"] = [], []
+    aum = aum_map([t for t, _ in SECTORS + THEMES], now.strftime("%Y-%m-%d"))
     for group, lst, suffix in (("sectors", SECTORS, "板块 ETF"), ("themes", THEMES, " ETF")):
       for tk, name in lst:
         try:
@@ -130,7 +148,8 @@ if __name__ == "__main__":
                    "nl": bool(y["Low"].iloc[-1] <= y["Low"].iloc[:-1].min())}     # 今天创 52 周新低
             w52["young"] = len(h) < 240                       # 上市不足一年：52 周位置按上市以来计算
             sig, age = ha_signal(h)
-            out[group].append({"ticker": tk, "name": name, **r, **w52, "new": r["bull"] and r["bars"] == 1, "sig": sig, "sig_age": age})
+            out[group].append({"ticker": tk, "name": name, **r, **w52, "new": r["bull"] and r["bars"] == 1, "sig": sig, "sig_age": age,
+                               "aum": aum.get(tk)})
             save_chart(tk, {"t": tk, "name": name + suffix, **pack(h)})
         except Exception as e:
             print("失败:", tk, e)

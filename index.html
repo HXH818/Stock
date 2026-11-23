@@ -98,7 +98,8 @@
   .bchead a{margin-left:auto;color:#2962ff;cursor:pointer;font-size:13px}
   #bc{flex:1;min-height:620px}
   .bclegend{font-size:12px;color:#888;margin:6px 4px}
-  .sechead,.secrow{display:grid;grid-template-columns:56px 76px minmax(120px,1.3fr) 70px 104px 92px 70px minmax(150px,1fr) 140px;align-items:center;column-gap:12px;padding:0 10px}
+  .sechead,.secrow{display:grid;grid-template-columns:56px 76px minmax(120px,1.3fr) 70px 104px 92px 70px minmax(150px,1fr) 140px 76px;align-items:center;column-gap:12px;padding:0 10px}
+  .secrow .aum{text-align:right;font-size:13px;color:#555} .secrow .aum.small{color:#f23645;font-weight:700}
   .sechead{font-size:12px;color:#999;padding-bottom:8px;border-bottom:1px solid #e5e7eb}
   .secrow{height:44px;border-bottom:1px solid #f0f1f3;cursor:pointer}
   .secrow .bar{height:12px}
@@ -199,6 +200,7 @@
       <p class="note" style="line-height:1.9">买卖信号：平均K线变绿 + 股价站上BBI 首次同日成立 = 买入 ｜ 平均K线变红 + 股价跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
         排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
         52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位；* 上市不足一年，按上市以来计算<br>
+        资产规模：单位亿美元，每天更新一次 ｜ ⚠ 红色 = 小于 0.5 亿美元（5000 万），小型 ETF 清盘风险较高<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
     <div class="view" id="v-sector">
@@ -207,6 +209,7 @@
       <p class="note" style="line-height:1.9">买卖信号：平均K线变绿 + 股价站上BBI 首次同日成立 = 买入 ｜ 平均K线变红 + 股价跌破BBI 首次同日成立 = 卖出（显示最近 3 天）<br>
         排序规则：按BBI偏离度由强到弱 ｜ 左绿偏多、右红偏空（条带±5%，超限顶格）｜ ★新 = 今日由空翻多<br>
         52周位置：左高右低，圆点越靠左越近一年高点 ｜ 悬停看高低价；🔺新高 / 🔻新低 = 今日破位；* 上市不足一年，按上市以来计算<br>
+        资产规模：单位亿美元，每天更新一次 ｜ ⚠ 红色 = 小于 0.5 亿美元（5000 万），小型 ETF 清盘风险较高<br>
         免责声明：仅为个人观点，不构成投资建议</p>
     </div>
     <div class="view" id="v-hold">
@@ -432,10 +435,16 @@ function sigTag(x, prov){   // prov = 盘中预览：今天的信号还没收盘
   return `<span class="sig ${x.sig}${age === 0 ? " today" : ""}${p ? " prov" : ""}"${p ? ' title="盘中预览，收盘后才确认"' : ""}>${x.sig === "buy" ? "买入" : "卖出"}</span><span class="sigage">${when}</span>`;
 }
 
+/* 资产规模：亿美元；低于 0.5 亿（5000 万美元）标红，小型 ETF 清盘风险较高 */
+function aumCell(v){
+  if (!v) return '<span class="aum">—</span>';
+  const y = v / 1e8, t = y >= 100 ? Math.round(y).toLocaleString("en-US") : y.toFixed(1), small = y < 0.5;
+  return `<span class="aum${small ? " small" : ""}"${small ? ' title="规模小于 5000 万美元，清盘风险较高"' : ""}>${small ? "⚠ " : ""}$${t}亿</span>`;
+}
 /* 板块追踪：行业板块 + 热点赛道（日线 BBI） */
 function secBlock(list){
   if (!list || !list.length) return "";
-  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span>信号</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span></div>`;
+  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span>信号</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span><span style="text-align:right">资产规模</span></div>`;
   return head + [...list].sort((a, b) => b.pct - a.pct).map(s => {
     const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
     const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
@@ -448,7 +457,8 @@ function secBlock(list){
       <span>${sigTag(s)}</span>
       <span class="px">${s.close.toFixed(2)}</span>
       <div class="rng" title="52 周最高 ${s.hi52} · 最低 ${s.lo52}${yg}">高<div class="trk52"><div class="dot" style="left:${((1 - s.pos) * 100).toFixed(1)}%"></div></div>低</div>
-      <span class="dist">${dist}${s.young ? '<sup title="上市不足一年，按上市以来计算">*</sup>' : ""} ${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span></div>`;
+      <span class="dist">${dist}${s.young ? '<sup title="上市不足一年，按上市以来计算">*</sup>' : ""} ${s.nh ? '<span class="nh">🔺新高</span>' : s.nl ? '<span class="nl">🔻新低</span>' : ""}</span>
+      ${aumCell(s.aum)}</div>`;
   }).join("");
 }
 function loadSector(kind){   // kind = "sectors"（行业板块）或 "themes"（热点赛道）
