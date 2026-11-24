@@ -27,7 +27,7 @@ def save(path, obj):
         json.dump(obj, f, ensure_ascii=False)
 
 def sp500():
-    """从维基百科读取标普 500 成分股：代码、名称、板块。
+    """从维基百科读取标普500 成分股：代码、名称、板块。
        读取成功就存一份到 sp500.json；读取失败或数量不对（不在 495–510 之间），改用上一次存的名单"""
     try:
         html = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
@@ -151,6 +151,12 @@ def main():
     # 日线：批量下载全部成分股
     px = yf.download(tickers, period="1y", interval="1d", auto_adjust=False, progress=False, threads=True)
     close = px["Close"] if isinstance(px.columns, pd.MultiIndex) else px[["Close"]].rename(columns={"Close": tickers[0]})
+    # 雅虎偶尔在收盘后几个小时里缺了最新一天的数据：最后一行大部分是空值时，不用这次的结果
+    last_day = close.index[-1].strftime("%Y-%m-%d")
+    if close.iloc[-1].notna().mean() < 0.8:
+        if prev.get("asof", "") >= last_day:
+            print(f"选股：{last_day} 的数据不完整，保留上一次的结果"); return
+        px, close = px.iloc[:-1], close.iloc[:-1]
     tech = bbi_table(close)
 
     rows = []

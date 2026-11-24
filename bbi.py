@@ -78,11 +78,30 @@ def ha_signal(k, look=3):
         return last, len(c) - 1 - last_i
     return "", None
 
-def ohlc(tk, period, interval):
+def ohlc(tk, period, interval, key=None):
     k = yf.Ticker(tk).history(period=period, interval=interval)[["Open", "High", "Low", "Close"]].dropna()
     if k.index.tz is not None:
         k.index = k.index.tz_convert(TZ)
+    if interval == "1d" and key:
+        k = patch_daily(k, key)
     return k
+
+def patch_daily(k, key):
+    """雅虎偶尔在收盘后几个小时里返回缺了最新一天的日线（数据会"倒退"回前一个交易日）。
+       这时把上次保存在 charts/ 里、比这次更新的那几天（最多 3 天）补回来，避免把正确的数据覆盖掉"""
+    try:
+        with open(f"charts/{key}.json", encoding="utf-8") as f: old = json.load(f)
+    except Exception:
+        return k
+    if "frames" in old: old = old["frames"].get("日线", {})
+    if k.empty or not old.get("d"): return k
+    last = k.index[-1].strftime("%Y-%m-%d")
+    add = [i for i, d in enumerate(old["d"]) if d > last]
+    if not add or len(add) > 3: return k
+    print("补回缺失的日线:", key, [old["d"][i] for i in add])
+    rows = pd.DataFrame({c: [old[c.lower()[0]][i] for i in add] for c in ["Open", "High", "Low", "Close"]},
+                        index=pd.DatetimeIndex([pd.Timestamp(old["d"][i], tz=TZ) for i in add]))
+    return pd.concat([k, rows])
 
 def to_4h(k1, anchor):
     """把 1 小时 K 线合成 4 小时：从 anchor 起每 4 小时一组（开=首、高=最高、低=最低、收=末）"""
@@ -121,7 +140,7 @@ if __name__ == "__main__":
     # ES / NQ：日线 + 4H
     for tk, key, name, anchor in SYMBOLS:
         try:
-            d1 = ohlc(tk, "1y", "1d")
+            d1 = ohlc(tk, "1y", "1d", key)
             h4 = to_4h(ohlc(tk, "60d", "1h"), anchor)
             out["items"].append({"name": name, "symbol": tk, "key": key,
                                  "d1": summarize(d1["Close"]), "h4": summarize(h4["Close"])})
@@ -135,7 +154,7 @@ if __name__ == "__main__":
     for group, lst, suffix in (("sectors", SECTORS, "板块 ETF"), ("themes", THEMES, " ETF")):
       for tk, name in lst:
         try:
-            h = ohlc(tk, "1y", "1d")
+            h = ohlc(tk, "1y", "1d", tk)
             if len(h) < 30:                                   # 数据太少（新上市或代码无效）就跳过
                 print("数据不足:", tk, len(h)); continue
             r = summarize(h["Close"])
@@ -163,14 +182,14 @@ if __name__ == "__main__":
             try:
                 with open(f"charts/{tk}.json", encoding="utf-8") as f: name = json.load(f).get("name", tk)
             except Exception: pass
-            h = ohlc(tk, "1y", "1d")
+            h = ohlc(tk, "1y", "1d", tk)
             if len(h) >= 30: save_chart(tk, {"t": tk, "name": name, **pack(h)})
         except Exception as e:
             print("失败:", tk, e)
 
     # VIX：最新值和涨跌；图表只画 K 线 + MACD（不画 BBI）
     try:
-        v = ohlc("^VIX", "1y", "1d")
+        v = ohlc("^VIX", "1y", "1d", "VIX")
         c = v["Close"]
         out["vix"] = {"value": round(float(c.iloc[-1]), 2),
                       "chg": round(float(c.iloc[-1] - c.iloc[-2]), 2),
