@@ -458,7 +458,7 @@ function sigTag(x, prov){   // prov = 盘中预览：今天的信号还没收盘
 /* 资产规模：亿美元；低于 0.5 亿（5000 万美元）标红，小型 ETF 清盘风险较高 */
 function aumCell(v){
   if (!v) return '<span class="aum">—</span>';
-  const y = v / 1e8, t = y >= 1000 ? (y / 1000).toFixed(1) + "千亿" : y.toFixed(1) + "亿", small = y < 0.5;   // 一位小数；≥1000 亿写成千亿
+  const y = v / 1e8, t = y >= 1000 ? (y / 1000).toFixed(1) + "千亿" : y >= 100 ? (y / 100).toFixed(1) + "百亿" : y.toFixed(1) + "亿", small = y < 0.5;   // 一位小数；≥1000 亿千亿，≥100 亿百亿
   return `<span class="aum${small ? " small" : ""}"${small ? ' title="规模小于 5000 万美元，清盘风险较高"' : ""}>${small ? "⚠ " : ""}$${t}</span>`;
 }
 /* 板块追踪：行业板块 + 热点赛道（日线 BBI） */
