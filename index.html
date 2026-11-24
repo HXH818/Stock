@@ -464,7 +464,7 @@ function aumCell(v){
 /* 板块追踪：行业板块 + 热点赛道（日线 BBI） */
 function secBlock(list){
   if (!list || !list.length) return "";
-  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span>信号</span><span style="text-align:right">收盘价</span><span style="text-align:center">52 周位置</span><span>距高 / 低点</span><span style="text-align:right">资产规模</span></div>`;
+  const head = `<div class="sechead"><span>代码</span><span>名称</span><span style="text-align:center">BBI偏离</span><span style="text-align:right">偏离</span><span>状态</span><span>信号</span><span style="text-align:right">收盘价</span><span style="text-align:center">52周位置</span><span>距高/低点</span><span style="text-align:right">资产规模</span></div>`;
   return head + [...list].sort((a, b) => b.pct - a.pct).map(s => {
     const col = s.bull ? "#089981" : "#f23645", w = Math.min(Math.abs(s.pct), RANGE) / RANGE * 50;
     const nearHi = s.pos >= 0.5, dist = nearHi ? `距高点 ${s.from_hi}%` : `距低点 +${s.from_lo}%`;
