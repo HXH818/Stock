@@ -3,7 +3,7 @@
 #   收盘后（美东 17:00 以后，工作日）：每天一条总结（大盘、今日信号、持仓）
 # 需要的 Secrets：TELEGRAM_TOKEN、TELEGRAM_CHAT_ID；持仓来自 HOLDINGS（网页自动加密上传）
 # 注意：仓库是公开的，Actions 日志也公开，所以这里绝不打印持仓内容
-import hashlib, json, os
+import glob, hashlib, json, os
 import numpy as np
 import pandas as pd
 import requests
@@ -56,6 +56,78 @@ def chart(t):
     if d and d.get("frames"): d = d["frames"]["日线"]
     return d
 
+# ===== 期权：与网页规则一致 =====
+OT = {"C": ("看涨期权", True, True, 1), "P": ("看跌期权", False, True, 1),
+      "BC": ("牛市看涨价差", True, True, 2), "BP": ("熊市看跌价差", False, True, 2),
+      "BuP": ("牛市看跌价差", True, False, 2), "BeC": ("熊市看涨价差", False, False, 2)}   # 名称, 看涨?, 借方?, 腿数
+RULE = {"single": (1.0, -0.5, 7), "debit": (0.5, -0.5, 7), "credit": (0.5, -2.0, 21)}   # 止盈, 止损, 到期提醒天数
+
+def kkey(k): return ("%f" % float(k)).rstrip("0").rstrip(".")   # 与网页 String(数字) 一致，如 680、682.5
+
+def fetch_chains(opts, today):
+    """把持仓用到的 标的 + 到期日 的期权链存到 charts/opt/（现价 ±40% 以内的行权价），不需要的旧文件删掉"""
+    import yfinance as yf
+    os.makedirs("charts/opt", exist_ok=True)
+    need = {(o["t"], o["exp"]) for o in opts}
+    for f in glob.glob("charts/opt/*.json"):
+        if tuple(os.path.basename(f)[:-5].split("_", 1)) not in need: os.remove(f)
+    for t, exp in need:
+        if exp < today: continue                                  # 已到期：保留最后一次的报价
+        try:
+            tk = yf.Ticker(t)
+            if exp not in tk.options: print("期权到期日不存在（请检查日期）"); continue
+            spot = float(tk.history(period="5d")["Close"].dropna().iloc[-1])
+            ch = tk.option_chain(exp)
+            def pack(df):
+                df = df[(df["strike"] >= spot * 0.6) & (df["strike"] <= spot * 1.4)]
+                return {kkey(r.strike): [float(r.bid or 0), float(r.ask or 0), float(r.lastPrice or 0)] for r in df.itertuples()}
+            with open(f"charts/opt/{t}_{exp}.json", "w", encoding="utf-8") as f:
+                json.dump({"t": t, "exp": exp, "spot": round(spot, 2), "c": pack(ch.calls), "p": pack(ch.puts)}, f)
+        except Exception as e:
+            print("期权链失败:", type(e).__name__)                  # 不打印代码和日期，避免在公开日志里暴露持仓
+
+def exit_sig(d, bull):
+    o, hi, lo, c = (np.array(d[k], float) for k in "ohlc")
+    n, s = len(c), pd.Series(c)
+    bbi = ((s.rolling(3).mean() + s.rolling(6).mean() + s.rolling(12).mean() + s.rolling(24).mean()) / 4).to_numpy()
+    hc = (o + hi + lo + c) / 4
+    ho = np.empty(n); ho[0] = (o[0] + c[0]) / 2
+    for i in range(1, n): ho[i] = (ho[i - 1] + hc[i - 1]) / 2
+    dif = ema(c, 12) - ema(c, 26); dea = ema(dif, 9)
+    red, below, dead = hc[-1] <= ho[-1], c[-1] < bbi[-1], dif[-1] < dea[-1]
+    return (red and below and dead) if bull else (not red and not below and not dead)
+
+def analyze_opt(o, today):
+    q = load(f"charts/opt/{o['t']}_{o['exp']}.json")
+    if not q: return None
+    name, bull, debit, legs = OT[o["type"]]
+    def px(side, k):
+        x = q[side].get(kkey(k))
+        if not x: return None
+        bid, ask, last = x
+        return (bid + ask) / 2 if bid > 0 and ask > 0 else last
+    lo, hi = float(o["k1"]), float(o["k2"] or 0)
+    t = o["type"]
+    legs_px = {"C": (("c", lo),), "P": (("p", lo),), "BC": (("c", lo), ("c", hi)), "BP": (("p", hi), ("p", lo)),
+               "BuP": (("p", hi), ("p", lo)), "BeC": (("c", lo), ("c", hi))}[t]
+    vals = [px(*l) for l in legs_px]
+    if any(v is None for v in vals): return None
+    val = vals[0] - (vals[1] if len(vals) > 1 else 0)
+    price, qty = float(o["price"]), int(o["qty"])
+    pl = val - price if debit else price - val
+    max_p = None if legs == 1 else ((hi - lo) - price if debit else price)
+    take, stop, dte_warn = RULE["single" if legs == 1 else "debit" if debit else "credit"]
+    dte = (pd.Timestamp(o["exp"]) - pd.Timestamp(today)).days
+    d = chart(o["t"])
+    if dte < 0: act = "⚠ 已到期"
+    elif pl <= stop * price: act = "⚠ 止损平仓"
+    elif pl >= take * (max_p if legs == 2 and debit else price): act = "✓ 止盈平仓"
+    elif d and len(d["c"]) >= 30 and exit_sig(d, bull): act = "⚠ 信号平仓"
+    elif dte <= dte_warn: act = f"⏰ 剩 {dte} 天"
+    else: act = "持有"
+    nm = f"{o['t']} {name} {o['exp'][5:]} {kkey(lo)}" + (f"/{kkey(hi)}" if legs == 2 else "")
+    return {"side": "O", "t": nm, "last": val, "day": None, "pnl": pl / price * 100, "amt": pl * qty * 100, "act": act, "dte": dte}
+
 def positions():
     raw = os.environ.get("HOLDINGS", "").strip()
     if not raw: return None
@@ -67,11 +139,21 @@ def positions():
             d = chart(h["t"])
             if d and len(d["c"]) >= 30:
                 out.append({"side": side, "t": h["t"], **analyze(h, d, side == "S")})
+    opts = hd.get("O", [])
+    if opts:
+        today = pd.Timestamp.now(tz=TZ).strftime("%Y-%m-%d")
+        fetch_chains(opts, today)
+        for o in opts:
+            try:
+                r = analyze_opt(o, today)
+                if r: out.append(r)
+            except Exception as e:
+                print("期权计算失败:", type(e).__name__)
     return out
 
 def money(v): return ("-$" if v < 0 else "$") + f"{abs(v):,.0f}"
 def pct(v): return f"{'+' if v > 0 else ''}{v:.2f}%"
-def tag(side): return "🟢多" if side == "L" else "🔴空"
+def tag(side): return {"L": "🟢多", "S": "🔴空", "O": "🟣权"}[side]
 
 def summary(pos):
     d, sc = load("data.json", {}), load("screen.json", {})
@@ -94,7 +176,8 @@ def summary(pos):
         lines.append("<b>持仓</b>")
         for p in sorted(pos, key=lambda p: (p["act"] == "持有", p["side"], -p["pnl"])):
             a = p["act"] if p["act"] == "持有" else f"<b>{p['act']}</b>"
-            lines.append(f"{tag(p['side'])} {p['t']}  今日 {pct(p['day'])}  累计 {pct(p['pnl'])}（{money(p['amt'])}）→ {a}")
+            day = f"今日 {pct(p['day'])}  " if p["day"] is not None else f"剩 {p['dte']} 天  "
+            lines.append(f"{tag(p['side'])} {p['t']}  {day}累计 {pct(p['pnl'])}（{money(p['amt'])}）→ {a}")
         todo = sum(p["act"] != "持有" for p in pos)
         lines.append(f"总盈亏 <b>{money(sum(p['amt'] for p in pos))}</b> ｜ 今日需处理 <b>{todo}</b> 只")
     lines += ["", f'<a href="{SITE}">打开网站</a>']
